@@ -1,5 +1,8 @@
 plugins {
     id("com.android.application")
+    // START: FlutterFire Configuration
+    id("com.google.gms.google-services")
+    // END: FlutterFire Configuration
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -19,6 +22,10 @@ android {
         applicationId = "com.hamrokosh.hamro_kosh"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
+        // Flutter's default minSdkVersion already satisfies the current
+        // firebase_auth/firebase_messaging plugins (both need 23+); the
+        // Flutter tool rewrites this file on build, so pin a custom value
+        // here only if a future plugin actually requires raising it.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

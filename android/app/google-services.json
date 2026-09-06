@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "147153174017",
+    "project_id": "hamro-kosh1",
+    "storage_bucket": "hamro-kosh1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:147153174017:android:cd6e7ac8c565e65bc98a00",
+        "android_client_info": {
+          "package_name": "com.hamrokosh.hamro_kosh"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAF-ec28WuatrNbaJm1-ji9HCG5jf521D8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

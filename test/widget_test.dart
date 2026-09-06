@@ -1,30 +1,43 @@
-// This is a basic Flutter widget test.
+// Smoke tests for pieces that don't require a live Firebase project.
 //
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+// Testing `HamroKoshApp` itself needs a mocked Firebase (firebase_auth
+// depends on platform channels that aren't available under `flutter test`)
+// — that's a natural follow-up once `flutterfire configure` has been run
+// with a real project. See README.md → "Testing".
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:hamro_kosh/main.dart';
+import 'package:hamro_kosh/core/theme/app_theme.dart';
+import 'package:hamro_kosh/core/theme/finance_colors.dart';
+import 'package:hamro_kosh/core/utils/currency_formatter.dart';
+import 'package:hamro_kosh/core/widgets/app_button.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  test('AppTheme builds valid light and dark ThemeData', () {
+    final light = AppTheme.light();
+    final dark = AppTheme.dark();
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    expect(light.brightness, Brightness.light);
+    expect(dark.brightness, Brightness.dark);
+    expect(light.extension<FinanceColors>(), isNotNull);
+    expect(dark.extension<FinanceColors>(), isNotNull);
+  });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+  test('CurrencyFormatter formats NPR amounts', () {
+    expect(CurrencyFormatter.format(1500), contains('1,500'));
+    expect(CurrencyFormatter.format(1500), startsWith('Rs.'));
+  });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  testWidgets('AppButton shows a spinner while loading', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AppButton(label: 'Submit', isLoading: true, onPressed: () {}),
+        ),
+      ),
+    );
+
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.text('Submit'), findsNothing);
   });
 }

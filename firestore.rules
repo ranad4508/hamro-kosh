@@ -1,0 +1,172 @@
+rules_version = '2';
+
+// Hamro Kosh — Firestore security rules.
+// Implements SRS §50 (role-based access, no member can touch another
+// member's financial records) and §51 (financial records are admin-written
+// and never hard-deleted). Transparency features (§10-§12, §25, §54) mean
+// approved/active members get broad READ access to fund-wide collections;
+// only an admin/super admin may write financial data.
+//
+// RBAC (SRS.md §58): three roles — member, admin, superAdmin. The super
+// admin is provisioned once, manually (see README.md), never through any
+// client write, is never deletable, and can never be demoted through the
+// bulk admin-update path below (only self-edits to name/phone/photo reach
+// a superAdmin doc from a client). Minting new member/admin accounts with
+// emailed credentials goes through `functions/index.js` (Admin SDK, which
+// bypasses these rules entirely) — never a direct client write.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- helpers --------------------------------------------------------
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function selfData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isSelf(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Admin actions require the acting account to also be active, so
+    // disabling an admin's account (SRS §35) immediately revokes admin
+    // write access without needing a separate role change. Both admin and
+    // superAdmin count — see the RBAC note above.
+    function isAdmin() {
+      return isSignedIn()
+        && (selfData().role == 'admin' || selfData().role == 'superAdmin')
+        && selfData().isActive == true;
+    }
+
+    // "Member" for transparency reads means vetted and not disabled — a
+    // brand-new registration awaiting approval (§3.4/§35) does not yet get
+    // community-wide financial visibility.
+    function isActiveMember() {
+      return isSignedIn() && selfData().isApproved == true && selfData().isActive == true;
+    }
+
+    // ---- users/{uid} + subcollections -----------------------------------
+
+    match /users/{userId} {
+      // Own profile always readable; an approved member's profile is
+      // readable by any other member for the community directory (§31).
+      // NOTE: `list` queries (e.g. the member directory) cannot be filtered
+      // by resource.data in rules, so any active member can list the full
+      // `users` collection, not just approved ones — the isApproved filter
+      // is enforced client-side only. Acceptable for a small trusted fund;
+      // move phone/email into a locked-down doc if that changes.
+      allow get: if isSelf(userId) || isAdmin() || resource.data.isApproved == true;
+      allow list: if isAdmin() || isActiveMember();
+
+      // Registration writes its own doc (§3). Must not self-grant admin,
+      // self-approve, or spoof its auth email.
+      allow create: if isSelf(userId)
+        && request.resource.data.role == 'member'
+        && request.resource.data.isApproved == false
+        && request.resource.data.isActive == true
+        && request.resource.data.email == request.auth.token.email;
+
+      // Admins manage role/approval/active status (§35); members may only
+      // edit their own non-privileged profile fields. The admin path can
+      // never touch a superAdmin doc (protects it from demotion/disabling)
+      // and can never grant the superAdmin role to anyone.
+      allow update: if (isAdmin()
+            && resource.data.role != 'superAdmin'
+            && request.resource.data.role != 'superAdmin')
+        || (isSelf(userId)
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['fullName', 'phone', 'photoUrl', 'mustChangePassword']));
+
+      // A super admin's document is never deletable, by anyone (SRS.md §58).
+      allow delete: if isAdmin() && resource.data.role != 'superAdmin';
+
+      // A member's own contribution history + the admin verification queue
+      // (§7-§9, §38). Once submitted, only an admin can change its status
+      // (verify/reject) — corrections must go through admin review, never
+      // a member edit.
+      match /contributions/{contributionId} {
+        allow read: if isSelf(userId) || isAdmin();
+        allow create: if isSelf(userId)
+          && request.resource.data.memberUid == userId
+          && request.resource.data.status == 'pending'
+          && request.resource.data.amount is number
+          && request.resource.data.amount > 0;
+        allow update: if isAdmin();
+        allow delete: if false;
+      }
+
+      // Per-member notification center (§45). Members may only flip the
+      // read flag on their own notifications; admins/Cloud Functions author
+      // the entries.
+      match /notifications/{notificationId} {
+        allow read: if isSelf(userId) || isAdmin();
+        allow create: if isAdmin();
+        allow update: if isSelf(userId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']);
+        allow delete: if isSelf(userId) || isAdmin();
+      }
+    }
+
+    // ---- fund-wide financial ledger --------------------------------------
+
+    // The transparent transaction ledger (§11/§12/§54). Every member can see
+    // where money came from and went; only admins record entries, and
+    // entries are never deleted (§51 rule 3) — corrections must be new,
+    // audited entries, not edits to history. Loosen `update` further to
+    // `false` once the admin correction flow always appends instead of
+    // mutating in place.
+    match /transactions/{transactionId} {
+      allow read: if isActiveMember() || isAdmin();
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // Loan requests/approvals/repayments (§15-§25). A member may create
+    // their own loan request in `requested` status; every other change
+    // (approve, reject, disburse, record a repayment) is an admin action.
+    // Loan existence/status is visible fund-wide for transparency (§25/§54:
+    // "who has an outstanding loan").
+    match /loans/{loanId} {
+      allow read: if isActiveMember() || isAdmin();
+      allow create: if isActiveMember()
+        && request.resource.data.memberId == request.auth.uid
+        && request.resource.data.status == 'requested'
+        && request.resource.data.amountPaid == 0
+        && request.resource.data.amount is number
+        && request.resource.data.amount > 0;
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // Admin-authored community announcements (§33), broadcast to everyone.
+    match /announcements/{announcementId} {
+      allow read: if isActiveMember() || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Configurable contribution/loan/interest rules (§18/§39). Members need
+    // to see these (e.g. before accepting loan terms, §19); only admins
+    // change them.
+    match /settings/fund_rules {
+      allow read: if isActiveMember() || isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // Admin-only audit trail (§40/§41) — not part of the member navigation.
+    // Append-only: no entry is ever edited or removed once written.
+    match /audit_log/{entryId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    // Aggregated fund summary shown on the transparency dashboard (§6/§54).
+    match /fund/summary {
+      allow read: if isActiveMember() || isAdmin();
+      allow write: if isAdmin();
+    }
+  }
+}

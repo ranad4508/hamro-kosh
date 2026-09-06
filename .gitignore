@@ -43,3 +43,20 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Firebase CLI
+.firebase/
+*-debug.log
+.runtimeconfig.json
+
+# Cloud Functions (Node.js) — functions/index.js reads RESEND_API_KEY via
+# Secret Manager at deploy time; .secret.local/.env hold that key locally
+# for the emulator and must never be committed (see functions/package.json).
+functions/node_modules/
+functions/.env
+functions/.env.*
+functions/.secret.local
+
+# Service account keys — never commit
+*serviceAccountKey*.json
+*firebase-adminsdk*.json
