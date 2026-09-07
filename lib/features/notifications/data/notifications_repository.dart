@@ -16,9 +16,11 @@ class NotificationsRepository {
         .orderBy('createdAt', descending: true)
         .limit(100)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => NotificationItem.fromFirestore(doc.id, doc.data()))
-            .toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => NotificationItem.fromFirestore(doc.id, doc.data()))
+              .toList(),
+        );
   }
 
   Stream<List<Announcement>> watchAnnouncements() {
@@ -27,9 +29,11 @@ class NotificationsRepository {
         .orderBy('publishedAt', descending: true)
         .limit(50)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => Announcement.fromFirestore(doc.id, doc.data()))
-            .toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => Announcement.fromFirestore(doc.id, doc.data()))
+              .toList(),
+        );
   }
 
   Future<void> markRead(String uid, String notificationId) {

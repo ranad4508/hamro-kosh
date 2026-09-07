@@ -24,11 +24,16 @@ class TransactionTile extends StatelessWidget {
         backgroundColor: color.withValues(alpha: 0.14),
         child: Icon(transaction.type.icon, color: color, size: 20),
       ),
-      title: Text(transaction.description, maxLines: 1, overflow: TextOverflow.ellipsis),
+      title: Text(
+        transaction.description,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
       subtitle: Text(
-        transaction.memberName != null
-            ? '${transaction.memberName} • ${DateFormatter.shortDate(transaction.date)}'
-            : DateFormatter.shortDate(transaction.date),
+        [
+          transaction.memberName ?? transaction.recipient,
+          DateFormatter.shortDate(transaction.date),
+        ].whereType<String>().join(' • '),
       ),
       trailing: Text(
         '$sign${CurrencyFormatter.format(transaction.amount)}',

@@ -5,6 +5,7 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/models/loan_status.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/widgets/stat_card.dart';
+import '../../../fund/presentation/widgets/fund_hero_card.dart';
 import '../../../fund/presentation/widgets/fund_summary_grid.dart';
 import '../../../fund/providers/fund_providers.dart';
 import '../../../loans/providers/loans_providers.dart';
@@ -63,7 +64,13 @@ class AdminDashboardScreen extends ConsumerWidget {
           summary.when(
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (error, _) => AppErrorState(message: '$error'),
-            data: (data) => FundSummaryGrid(summary: data),
+            data: (data) => Column(
+              children: [
+                FundHeroCard(summary: data),
+                const SizedBox(height: AppSpacing.md),
+                FundSummaryGrid(summary: data),
+              ],
+            ),
           ),
         ],
       ),

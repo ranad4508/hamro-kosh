@@ -5,12 +5,12 @@ enum NotificationCategory { financial, reminder, loan, announcement, system }
 
 extension NotificationCategoryIcon on NotificationCategory {
   IconData get icon => switch (this) {
-        NotificationCategory.financial => Icons.payments_outlined,
-        NotificationCategory.reminder => Icons.alarm,
-        NotificationCategory.loan => Icons.request_quote_outlined,
-        NotificationCategory.announcement => Icons.campaign_outlined,
-        NotificationCategory.system => Icons.info_outline,
-      };
+    NotificationCategory.financial => Icons.payments_outlined,
+    NotificationCategory.reminder => Icons.alarm,
+    NotificationCategory.loan => Icons.request_quote_outlined,
+    NotificationCategory.announcement => Icons.campaign_outlined,
+    NotificationCategory.system => Icons.info_outline,
+  };
 }
 
 /// A single in-app notification-center entry (SRS §45).

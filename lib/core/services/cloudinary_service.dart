@@ -19,8 +19,9 @@ class CloudinaryService {
   static const String cloudName = 'qgqkws4z';
   static const String uploadPreset = 'hamro_kosh_unsigned';
 
-  static final Uri _uploadUri =
-      Uri.parse('https://api.cloudinary.com/v1_1/$cloudName/image/upload');
+  static final Uri _uploadUri = Uri.parse(
+    'https://api.cloudinary.com/v1_1/$cloudName/image/upload',
+  );
 
   /// Uploads [file] and returns its Cloudinary `secure_url`. Images are
   /// uploaded as-is; use a Cloudinary named transformation on the preset

@@ -37,7 +37,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    final success = await ref.read(authFormControllerProvider.notifier).register(
+    final success = await ref
+        .read(authFormControllerProvider.notifier)
+        .register(
           fullName: _fullName.text.trim(),
           email: _email.text.trim(),
           phone: _phone.text.trim(),
@@ -47,7 +49,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       AppSnackbar.showSuccess(
         context,
         title: 'Account created',
-        message: 'Your account is awaiting admin approval before you can sign in.',
+        message:
+            'Your account is awaiting admin approval before you can sign in.',
       );
     }
   }
@@ -114,8 +117,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 controller: _confirmPassword,
                 obscureText: true,
                 prefixIcon: Icons.lock_outline,
-                validator: (v) =>
-                    Validators.confirmPassword(v, _password.text),
+                validator: (v) => Validators.confirmPassword(v, _password.text),
               ),
               const SizedBox(height: AppSpacing.lg),
               AppButton(

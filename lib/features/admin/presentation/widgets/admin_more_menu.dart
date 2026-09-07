@@ -24,10 +24,31 @@ class AdminMoreMenu extends StatelessWidget {
           ),
         ),
         PopupMenuItem(
+          value: RoutePaths.adminCampaigns,
+          child: ListTile(
+            leading: Icon(Icons.campaign_outlined),
+            title: Text('Campaigns'),
+          ),
+        ),
+        PopupMenuItem(
+          value: RoutePaths.adminDisputes,
+          child: ListTile(
+            leading: Icon(Icons.report_problem_outlined),
+            title: Text('Disputes'),
+          ),
+        ),
+        PopupMenuItem(
           value: RoutePaths.adminSettings,
           child: ListTile(
             leading: Icon(Icons.settings_outlined),
             title: Text('System settings'),
+          ),
+        ),
+        PopupMenuItem(
+          value: RoutePaths.adminPrivacySettings,
+          child: ListTile(
+            leading: Icon(Icons.privacy_tip_outlined),
+            title: Text('Privacy settings'),
           ),
         ),
         PopupMenuItem(

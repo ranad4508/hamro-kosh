@@ -32,10 +32,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    await ref.read(authFormControllerProvider.notifier).signIn(
-          email: _email.text.trim(),
-          password: _password.text,
-        );
+    await ref
+        .read(authFormControllerProvider.notifier)
+        .signIn(email: _email.text.trim(), password: _password.text);
     // Successful sign-in is picked up by the router's authStateProvider
     // listener automatically; on failure the ref.listen below shows it.
   }
@@ -76,8 +75,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 controller: _password,
                 obscureText: true,
                 prefixIcon: Icons.lock_outline,
-                validator: (value) =>
-                    (value == null || value.isEmpty) ? 'Password is required' : null,
+                validator: (value) => (value == null || value.isEmpty)
+                    ? 'Password is required'
+                    : null,
                 autofillHints: const [AutofillHints.password],
               ),
               Align(

@@ -16,7 +16,7 @@ See [SRS.md](SRS.md) for the full software requirements specification.
 ## Status
 
 Foundation, navigation, theming, and a working RBAC/account flow are in
-place against a real Firebase project (`hamro-kosh1`). Business-logic depth
+place against a real Firebase project (`hamro-kosh-main`). Business-logic depth
 still growing — see the `TODO(hamro-kosh)` comments in `lib/core/services`
 and a few feature repositories for exactly where, and "What's not finished
 yet" below for the two external setup steps still needed.
@@ -100,7 +100,7 @@ flutter pub get
 flutter run
 ```
 
-`lib/firebase_options.dart` already points at a real project (`hamro-kosh1`)
+`lib/firebase_options.dart` already points at a real project (`hamro-kosh-main`)
 — Auth, Firestore, and Storage work out of the box. Two things still need a
 one-time setup step from you before everything works end-to-end: creating
 the Cloudinary upload preset (above) and deploying the Cloud Function
@@ -122,25 +122,28 @@ flutter gen-l10n
 
 ## Firebase project (already connected)
 
-`hamro-kosh1` is wired up via `flutterfire configure` — Android's native
+`hamro-kosh-main` is wired up via `flutterfire configure` — Android's native
 config (`android/app/google-services.json`, the Gradle plugin) is in place.
 **iOS still needs `ios/Runner/GoogleService-Info.plist`**: `flutterfire
 configure` couldn't place it from this Windows machine; re-run the wizard
 (`flutterfire configure`, select iOS) from a Mac, or add the file manually
 from the Firebase console → Project settings → your iOS app.
 
-Firestore security rules (`firestore.rules`) are written and deployed —
-`firebase deploy --only firestore:rules` after any further edits to that
-file.
+Firestore security rules (`firestore.rules`) are written, but not yet
+deployed to `hamro-kosh-main` — run `firebase deploy --only firestore:rules`
+(and again after any further edits to that file).
 
-### Deploy the Cloud Function
+### Deploy the Cloud Functions
 
-`functions/index.js` (`createUserAccount`) is the only thing allowed to
-call Resend, and it needs the **Blaze (pay-as-you-go)** plan — any Cloud
-Function with outbound network access to a non-Google API requires it,
-regardless of which email provider is behind that call. The free tier is
-generous; this app won't approach paid usage. Upgrade at
-https://console.firebase.google.com/project/hamro-kosh1/usage/details,
+`functions/index.js` is the only place the Resend API key and the
+Admin-SDK-privileged writes (minting a Firebase Auth user for someone else,
+recording a ledger entry, updating the fund total) are allowed to exist. All
+of Cloud Functions v2 (`onCall`/`onDocumentCreated`) requires the **Blaze
+(pay-as-you-go)** plan — the free Spark plan won't provision these at all,
+regardless of whether a given function calls an external API. The free tier
+included with Blaze is generous; a community fund app at this scale (a few
+hundred members, low daily activity) won't approach paid usage. Upgrade at
+https://console.firebase.google.com/project/hamro-kosh-main/usage/details,
 then:
 
 ```bash
@@ -152,11 +155,15 @@ cd functions && npm install && cd ..
 firebase deploy --only functions
 ```
 
-If you'd rather not put this project on Blaze, the alternative is hosting
-this one function elsewhere (Cloudflare Workers' free tier, for example)
-and having the Flutter app call that HTTPS endpoint instead — ask if you
-want that swapped in; the client-side call in
-`admin_create_user_screen.dart` would just point at a different URL.
+This deploys: `createUserAccount` (provision a member/admin account),
+`verifyContribution` (verify/reject a contribution), `approveLoan`
+(approve/reject a loan), `verifyRepayment` (splits a repayment into
+principal/interest/penalty and updates the loan), `recordExpense` (admin
+records a community expense), `notifyOnTransaction` (a Firestore trigger
+that emails every active member on a new ledger entry), and
+`dailyLoanSweep` (a **scheduled** function — repayment reminders and the
+auto-transition to `overdue`; Cloud Scheduler's free tier covers the one
+job this uses, well within the 3 free jobs per project).
 
 ### RBAC & the super admin
 

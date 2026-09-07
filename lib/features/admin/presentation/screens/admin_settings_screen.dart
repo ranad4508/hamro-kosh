@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_sizes.dart';
+import '../../../../core/models/loan_category.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/app_text_field.dart';
@@ -9,7 +10,9 @@ import '../../../../core/widgets/empty_state.dart';
 import '../../data/fund_rules.dart';
 import '../../providers/admin_providers.dart';
 
-/// SRS §39 — configurable contribution/loan/interest/repayment rules.
+/// SRS §39 — the fund's configurable contribution rule, plus the fixed
+/// lending policy shown read-only for reference (it isn't a setting — see
+/// `FundRules`'s doc comment for why).
 class AdminSettingsScreen extends ConsumerWidget {
   const AdminSettingsScreen({super.key});
 
@@ -38,28 +41,23 @@ class _FundRulesForm extends ConsumerStatefulWidget {
 }
 
 class _FundRulesFormState extends ConsumerState<_FundRulesForm> {
-  late final _monthly =
-      TextEditingController(text: '${widget.initial.monthlyContributionAmount}');
-  late final _interest =
-      TextEditingController(text: '${widget.initial.defaultInterestRatePercent}');
-  late final _months =
-      TextEditingController(text: '${widget.initial.defaultRepaymentMonths}');
-  late final _penalty = TextEditingController(text: '${widget.initial.latePenaltyPercent}');
-  late final _grace = TextEditingController(text: '${widget.initial.gracePeriodDays}');
-  late final _maxLoan = TextEditingController(text: '${widget.initial.maxLoanAmount}');
+  late final _monthly = TextEditingController(
+    text: '${widget.initial.monthlyContributionAmount}',
+  );
   bool _saving = false;
 
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
-      await ref.read(fundRulesRepositoryProvider).update(FundRules(
-            monthlyContributionAmount: double.tryParse(_monthly.text) ?? widget.initial.monthlyContributionAmount,
-            defaultInterestRatePercent: double.tryParse(_interest.text) ?? widget.initial.defaultInterestRatePercent,
-            defaultRepaymentMonths: int.tryParse(_months.text) ?? widget.initial.defaultRepaymentMonths,
-            latePenaltyPercent: double.tryParse(_penalty.text) ?? widget.initial.latePenaltyPercent,
-            gracePeriodDays: int.tryParse(_grace.text) ?? widget.initial.gracePeriodDays,
-            maxLoanAmount: double.tryParse(_maxLoan.text) ?? widget.initial.maxLoanAmount,
-          ));
+      await ref
+          .read(fundRulesRepositoryProvider)
+          .update(
+            FundRules(
+              monthlyContributionAmount:
+                  double.tryParse(_monthly.text) ??
+                  widget.initial.monthlyContributionAmount,
+            ),
+          );
       if (mounted) {
         AppSnackbar.showSuccess(
           context,
@@ -72,7 +70,8 @@ class _FundRulesFormState extends ConsumerState<_FundRulesForm> {
         AppSnackbar.showError(
           context,
           title: 'Could not save',
-          message: 'Something went wrong updating fund rules. Please try again.',
+          message:
+              'Something went wrong updating fund rules. Please try again.',
         );
       }
     } finally {
@@ -92,42 +91,53 @@ class _FundRulesFormState extends ConsumerState<_FundRulesForm> {
           controller: _monthly,
           keyboardType: TextInputType.number,
         ),
-        const SizedBox(height: AppSpacing.lg),
-        Text('Loans & interest', style: Theme.of(context).textTheme.titleSmall),
-        const SizedBox(height: AppSpacing.sm),
-        AppTextField(
-          label: 'Default interest rate (% p.a.)',
-          controller: _interest,
-          keyboardType: TextInputType.number,
-        ),
-        const SizedBox(height: AppSpacing.md),
-        AppTextField(
-          label: 'Default repayment period (months)',
-          controller: _months,
-          keyboardType: TextInputType.number,
-        ),
-        const SizedBox(height: AppSpacing.md),
-        AppTextField(
-          label: 'Maximum loan amount (NPR)',
-          controller: _maxLoan,
-          keyboardType: TextInputType.number,
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        Text('Late payments', style: Theme.of(context).textTheme.titleSmall),
-        const SizedBox(height: AppSpacing.sm),
-        AppTextField(
-          label: 'Late penalty (%)',
-          controller: _penalty,
-          keyboardType: TextInputType.number,
-        ),
-        const SizedBox(height: AppSpacing.md),
-        AppTextField(
-          label: 'Grace period (days)',
-          controller: _grace,
-          keyboardType: TextInputType.number,
-        ),
         const SizedBox(height: AppSpacing.xl),
         AppButton(label: 'Save changes', isLoading: _saving, onPressed: _save),
+        const SizedBox(height: AppSpacing.xl),
+        Text('Lending policy', style: Theme.of(context).textTheme.titleSmall),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          "Fixed in the app and Cloud Functions — not a setting here, so a "
+          "member's loan terms always match what's actually enforced when "
+          "it's approved.",
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        for (final category in LoanCategory.values) ...[
+          Card(
+            child: ListTile(
+              leading: Icon(category.icon),
+              title: Text(category.label),
+              subtitle: Text(category.description),
+              trailing: Text(
+                '${category.monthlyInterestRatePercent}%/mo',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+        ],
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.warning_amber_outlined),
+            title: const Text('Late-payment penalty'),
+            subtitle: Text(
+              'Escalates by $loanLatePenaltyMonthlyRatePercent%/mo on the principal '
+              'for every repayment cycle missed after the due date.',
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.pin_outlined),
+            title: const Text('Maximum concurrent loans'),
+            trailing: Text(
+              '$maxConcurrentLoans',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+          ),
+        ),
       ],
     );
   }

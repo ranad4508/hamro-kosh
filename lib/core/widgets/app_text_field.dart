@@ -54,7 +54,9 @@ class _AppTextFieldState extends State<AppTextField> {
         suffixIcon: widget.obscureText
             ? IconButton(
                 icon: Icon(
-                  _obscured ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                  _obscured
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
                   size: 20,
                 ),
                 onPressed: () => setState(() => _obscured = !_obscured),

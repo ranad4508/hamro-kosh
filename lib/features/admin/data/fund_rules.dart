@@ -1,57 +1,31 @@
-/// SRS §18, §39 — admin-configurable contribution/loan/interest rules.
-/// Stored as a single `settings/fund_rules` document so both the member
-/// app (to show borrowers the rule before they accept a loan, SRS §19) and
-/// the admin settings screen read the same source of truth.
+/// SRS §18, §39 — admin-configurable contribution rule. Stored as a single
+/// `settings/fund_rules` document so both the member app (validating a
+/// contribution amount, SRS §7) and the admin settings screen read the same
+/// source of truth.
+///
+/// Loan interest/repayment/penalty terms are deliberately NOT here: SRS.md's
+/// fixed lending policy (`LoanCategory` in `core/models/loan_category.dart`)
+/// replaced the earlier admin-freeform rate, so those numbers are fixed in
+/// code on both the client and in `functions/index.js`'s `approveLoan` —
+/// not a per-fund setting. `AdminSettingsScreen` shows that fixed policy
+/// read-only, sourced from `LoanCategory` directly, so it can never drift
+/// out of sync with what's actually enforced.
 class FundRules {
-  const FundRules({
-    required this.monthlyContributionAmount,
-    required this.defaultInterestRatePercent,
-    required this.defaultRepaymentMonths,
-    required this.latePenaltyPercent,
-    required this.gracePeriodDays,
-    required this.maxLoanAmount,
-  });
+  const FundRules({required this.monthlyContributionAmount});
 
   final double monthlyContributionAmount;
-  final double defaultInterestRatePercent;
-  final int defaultRepaymentMonths;
-  final double latePenaltyPercent;
-  final int gracePeriodDays;
-  final double maxLoanAmount;
 
-  static const defaults = FundRules(
-    monthlyContributionAmount: 200,
-    defaultInterestRatePercent: 12,
-    defaultRepaymentMonths: 6,
-    latePenaltyPercent: 2,
-    gracePeriodDays: 7,
-    maxLoanAmount: 50000,
-  );
+  static const defaults = FundRules(monthlyContributionAmount: 250);
 
   factory FundRules.fromFirestore(Map<String, dynamic> data) {
-    double asDouble(String key, double fallback) =>
-        (data[key] as num?)?.toDouble() ?? fallback;
-    int asInt(String key, int fallback) => (data[key] as num?)?.toInt() ?? fallback;
-
     return FundRules(
       monthlyContributionAmount:
-          asDouble('monthlyContributionAmount', defaults.monthlyContributionAmount),
-      defaultInterestRatePercent:
-          asDouble('defaultInterestRatePercent', defaults.defaultInterestRatePercent),
-      defaultRepaymentMonths:
-          asInt('defaultRepaymentMonths', defaults.defaultRepaymentMonths),
-      latePenaltyPercent: asDouble('latePenaltyPercent', defaults.latePenaltyPercent),
-      gracePeriodDays: asInt('gracePeriodDays', defaults.gracePeriodDays),
-      maxLoanAmount: asDouble('maxLoanAmount', defaults.maxLoanAmount),
+          (data['monthlyContributionAmount'] as num?)?.toDouble() ??
+          defaults.monthlyContributionAmount,
     );
   }
 
   Map<String, dynamic> toFirestore() => {
-        'monthlyContributionAmount': monthlyContributionAmount,
-        'defaultInterestRatePercent': defaultInterestRatePercent,
-        'defaultRepaymentMonths': defaultRepaymentMonths,
-        'latePenaltyPercent': latePenaltyPercent,
-        'gracePeriodDays': gracePeriodDays,
-        'maxLoanAmount': maxLoanAmount,
-      };
+    'monthlyContributionAmount': monthlyContributionAmount,
+  };
 }

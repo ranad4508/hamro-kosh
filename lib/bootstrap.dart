@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
@@ -17,9 +19,15 @@ Future<void> bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
     configureFirestoreOfflinePersistence();
-    await NotificationService(FirebaseMessaging.instance).initialize();
+    await NotificationService(
+      FirebaseMessaging.instance,
+      FirebaseAuth.instance,
+      FirebaseFirestore.instance,
+    ).initialize();
   } catch (error, stackTrace) {
     // Expected until `flutterfire configure` has been run with a real
     // project — the app still starts so the rest of the UI (theming,

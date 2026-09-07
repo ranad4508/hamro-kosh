@@ -15,9 +15,11 @@ class ContributionsRepository {
         .collection('contributions')
         .orderBy('date', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => Contribution.fromFirestore(doc.id, doc.data()))
-            .toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => Contribution.fromFirestore(doc.id, doc.data()))
+              .toList(),
+        );
   }
 
   /// Submits a contribution for admin verification (SRS §7 — "view
@@ -32,27 +34,25 @@ class ContributionsRepository {
 
   /// Admin-only: every member's contributions via a collection-group query,
   /// optionally filtered to pending ones awaiting verification (SRS §38).
-  Stream<List<Contribution>> watchAllContributions({ContributionStatus? status}) {
-    Query<Map<String, dynamic>> query =
-        _firestore.collectionGroup('contributions').orderBy('date', descending: true);
+  Stream<List<Contribution>> watchAllContributions({
+    ContributionStatus? status,
+  }) {
+    Query<Map<String, dynamic>> query = _firestore
+        .collectionGroup('contributions')
+        .orderBy('date', descending: true);
     if (status != null) {
       query = query.where('status', isEqualTo: status.name);
     }
-    return query.snapshots().map((snapshot) => snapshot.docs
-        .map((doc) => Contribution.fromFirestore(doc.id, doc.data()))
-        .toList());
+    return query.snapshots().map(
+      (snapshot) => snapshot.docs
+          .map((doc) => Contribution.fromFirestore(doc.id, doc.data()))
+          .toList(),
+    );
   }
 
-  Future<void> setStatus({
-    required String memberUid,
-    required String contributionId,
-    required ContributionStatus status,
-  }) {
-    return _firestore
-        .collection('users')
-        .doc(memberUid)
-        .collection('contributions')
-        .doc(contributionId)
-        .update({'status': status.name});
-  }
+  // Verifying/rejecting a contribution is intentionally NOT a method here:
+  // it goes through the `verifyContribution` Cloud Function
+  // (`CloudFunctionsService.verifyContribution`) instead of a direct
+  // Firestore write, since it also has to record a ledger entry and update
+  // the fund total — see functions/index.js.
 }

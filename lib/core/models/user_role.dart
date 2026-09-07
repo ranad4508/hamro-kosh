@@ -15,9 +15,9 @@ enum UserRole {
   superAdmin;
 
   static UserRole fromName(String? name) => UserRole.values.firstWhere(
-        (role) => role.name == name,
-        orElse: () => UserRole.member,
-      );
+    (role) => role.name == name,
+    orElse: () => UserRole.member,
+  );
 
   /// Whether this role can reach the Admin shell (admin dashboard, member/
   /// loan/fund management, etc.) — both privileged roles do.

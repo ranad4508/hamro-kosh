@@ -17,8 +17,9 @@ class AppLockSettingController extends Notifier<bool> {
   @override
   bool build() {
     return ref
-        .read(sharedPreferencesProvider)
-        .getBool(_appLockEnabledPrefsKey) ?? false;
+            .read(sharedPreferencesProvider)
+            .getBool(_appLockEnabledPrefsKey) ??
+        false;
   }
 
   Future<void> setEnabled(bool enabled) async {
@@ -29,8 +30,7 @@ class AppLockSettingController extends Notifier<bool> {
   }
 }
 
-final appLockSettingProvider =
-    NotifierProvider<AppLockSettingController, bool>(
+final appLockSettingProvider = NotifierProvider<AppLockSettingController, bool>(
   AppLockSettingController.new,
 );
 
@@ -47,8 +47,7 @@ class AppLockSessionController extends Notifier<bool> {
   }
 }
 
-final appLockSessionProvider =
-    NotifierProvider<AppLockSessionController, bool>(
+final appLockSessionProvider = NotifierProvider<AppLockSessionController, bool>(
   AppLockSessionController.new,
 );
 

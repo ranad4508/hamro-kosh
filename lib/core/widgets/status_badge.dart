@@ -18,11 +18,26 @@ class StatusBadge extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
 
     final (Color fg, Color bg) = switch (tone) {
-      StatusTone.positive => (finance.onIncomeContainer, finance.incomeContainer),
-      StatusTone.negative => (finance.onExpenseContainer, finance.expenseContainer),
-      StatusTone.pending => (scheme.onSurface, finance.pending.withValues(alpha: 0.22)),
-      StatusTone.info => (scheme.onSecondaryContainer, scheme.secondaryContainer),
-      StatusTone.neutral => (scheme.onSurfaceVariant, scheme.surfaceContainerHighest),
+      StatusTone.positive => (
+        finance.onIncomeContainer,
+        finance.incomeContainer,
+      ),
+      StatusTone.negative => (
+        finance.onExpenseContainer,
+        finance.expenseContainer,
+      ),
+      StatusTone.pending => (
+        scheme.onSurface,
+        finance.pending.withValues(alpha: 0.22),
+      ),
+      StatusTone.info => (
+        scheme.onSecondaryContainer,
+        scheme.secondaryContainer,
+      ),
+      StatusTone.neutral => (
+        scheme.onSurfaceVariant,
+        scheme.surfaceContainerHighest,
+      ),
     };
 
     return Container(

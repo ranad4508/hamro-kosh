@@ -13,6 +13,8 @@ class FundTransaction {
     this.memberName,
     this.reference,
     this.proofUrl,
+    this.category,
+    this.recipient,
   });
 
   final String id;
@@ -23,6 +25,13 @@ class FundTransaction {
   final String? memberName;
   final String? reference;
   final String? proofUrl;
+
+  /// SRS §17 expense category (Birthday, Dashain, Emergency, ...) — only
+  /// populated for `fundExpense` entries.
+  final String? category;
+
+  /// Who the money was paid to — only populated for `fundExpense` entries.
+  final String? recipient;
 
   factory FundTransaction.fromFirestore(String id, Map<String, dynamic> data) {
     return FundTransaction(
@@ -37,6 +46,8 @@ class FundTransaction {
       memberName: data['memberName'] as String?,
       reference: data['reference'] as String?,
       proofUrl: data['proofUrl'] as String?,
+      category: data['category'] as String?,
+      recipient: data['recipient'] as String?,
     );
   }
 }

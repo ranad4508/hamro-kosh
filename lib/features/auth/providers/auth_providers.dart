@@ -21,10 +21,10 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 /// redirect that waits on this provider) stuck forever. Falling back to
 /// "signed out" after a few seconds keeps the scaffold explorable.
 final authStateProvider = StreamProvider<User?>((ref) {
-  return ref.watch(authRepositoryProvider).authStateChanges().timeout(
-        const Duration(seconds: 5),
-        onTimeout: (sink) => sink.add(null),
-      );
+  return ref
+      .watch(authRepositoryProvider)
+      .authStateChanges()
+      .timeout(const Duration(seconds: 5), onTimeout: (sink) => sink.add(null));
 });
 
 /// The signed-in member's Firestore profile (role, approval status, etc.),

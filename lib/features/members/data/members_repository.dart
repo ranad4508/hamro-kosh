@@ -17,7 +17,11 @@ class MembersRepository {
   }
 
   Stream<MemberDirectoryEntry?> watchMember(String uid) {
-    return _firestore.collection('users').doc(uid).snapshots().map(
+    return _firestore
+        .collection('users')
+        .doc(uid)
+        .snapshots()
+        .map(
           (doc) => doc.exists
               ? MemberDirectoryEntry.fromFirestore(doc.id, doc.data()!)
               : null,
@@ -29,9 +33,11 @@ class MembersRepository {
   /// super admin is never included — SRS.md §58: "not shown to other
   /// users," admins included.
   Stream<List<MemberDirectoryEntry>> watchAllMembers() {
-    return _firestore.collection('users').orderBy('fullName').snapshots().map(
-          (snapshot) => _excludingSuperAdmin(snapshot.docs),
-        );
+    return _firestore
+        .collection('users')
+        .orderBy('fullName')
+        .snapshots()
+        .map((snapshot) => _excludingSuperAdmin(snapshot.docs));
   }
 
   List<MemberDirectoryEntry> _excludingSuperAdmin(
@@ -44,7 +50,9 @@ class MembersRepository {
   }
 
   Future<void> setApproved(String uid, bool approved) {
-    return _firestore.collection('users').doc(uid).update({'isApproved': approved});
+    return _firestore.collection('users').doc(uid).update({
+      'isApproved': approved,
+    });
   }
 
   Future<void> setActive(String uid, bool active) {

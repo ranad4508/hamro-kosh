@@ -9,9 +9,9 @@ const _themeModePrefsKey = 'hamro_kosh.theme_mode';
 class ThemeModeController extends Notifier<ThemeMode> {
   @override
   ThemeMode build() {
-    final stored = ref.read(sharedPreferencesProvider).getString(
-          _themeModePrefsKey,
-        );
+    final stored = ref
+        .read(sharedPreferencesProvider)
+        .getString(_themeModePrefsKey);
     return ThemeMode.values.firstWhere(
       (mode) => mode.name == stored,
       orElse: () => ThemeMode.system,
@@ -27,6 +27,4 @@ class ThemeModeController extends Notifier<ThemeMode> {
 }
 
 final themeModeControllerProvider =
-    NotifierProvider<ThemeModeController, ThemeMode>(
-  ThemeModeController.new,
-);
+    NotifierProvider<ThemeModeController, ThemeMode>(ThemeModeController.new);

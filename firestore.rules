@@ -78,7 +78,7 @@ service cloud.firestore {
             && request.resource.data.role != 'superAdmin')
         || (isSelf(userId)
             && request.resource.data.diff(resource.data).affectedKeys()
-                 .hasOnly(['fullName', 'phone', 'photoUrl', 'mustChangePassword']));
+                 .hasOnly(['fullName', 'phone', 'photoUrl', 'mustChangePassword', 'fcmToken']));
 
       // A super admin's document is never deletable, by anyone (SRS.md §58).
       allow delete: if isAdmin() && resource.data.role != 'superAdmin';
@@ -88,13 +88,22 @@ service cloud.firestore {
       // (verify/reject) — corrections must go through admin review, never
       // a member edit.
       match /contributions/{contributionId} {
-        allow read: if isSelf(userId) || isAdmin();
+        // Member-to-member visibility is a core stated principle here
+        // (SRS §2.1 "view other members' contributions", §12/§54 "every
+        // rupee traceable") — the same transparency `loans` already gets
+        // below, not an admin-only view.
+        allow read: if isSelf(userId) || isAdmin() || isActiveMember();
         allow create: if isSelf(userId)
           && request.resource.data.memberUid == userId
           && request.resource.data.status == 'pending'
           && request.resource.data.amount is number
           && request.resource.data.amount > 0;
-        allow update: if isAdmin();
+        // Verifying/rejecting is a Cloud Function (`verifyContribution` in
+        // functions/index.js), not a client write: it also has to record a
+        // ledger entry and update the fund total atomically, which no rule
+        // here can express. The Admin SDK bypasses these rules entirely, so
+        // this stays `false` even for admins.
+        allow update: if false;
         allow delete: if false;
       }
 
@@ -120,15 +129,20 @@ service cloud.firestore {
     // mutating in place.
     match /transactions/{transactionId} {
       allow read: if isActiveMember() || isAdmin();
-      allow create, update: if isAdmin();
+      // Every ledger entry is written by a Cloud Function (`verifyContribution`
+      // / `approveLoan`) alongside the fund total it affects — never a direct
+      // client write, even from an admin session (SRS §36/§37: financial
+      // totals need one reliable, server-enforced source of truth).
+      allow create, update: if false;
       allow delete: if false;
     }
 
     // Loan requests/approvals/repayments (§15-§25). A member may create
-    // their own loan request in `requested` status; every other change
-    // (approve, reject, disburse, record a repayment) is an admin action.
-    // Loan existence/status is visible fund-wide for transparency (§25/§54:
-    // "who has an outstanding loan").
+    // their own loan request in `requested` status; approving, rejecting, or
+    // disbursing is a Cloud Function (`approveLoan` in functions/index.js),
+    // not a client write — same reasoning as `contributions` above. Loan
+    // existence/status is visible fund-wide for transparency (§25/§54: "who
+    // has an outstanding loan").
     match /loans/{loanId} {
       allow read: if isActiveMember() || isAdmin();
       allow create: if isActiveMember()
@@ -136,8 +150,26 @@ service cloud.firestore {
         && request.resource.data.status == 'requested'
         && request.resource.data.amountPaid == 0
         && request.resource.data.amount is number
-        && request.resource.data.amount > 0;
-      allow update: if isAdmin();
+        && request.resource.data.amount > 0
+        && request.resource.data.category in ['personal', 'emergency'];
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // Repayment claims against a loan (§21) — same shape as contributions:
+    // a member submits "I paid NPR X" in `pending` status; only the
+    // `verifyRepayment` Cloud Function can move it to verified/rejected,
+    // since verifying also splits the payment into principal/interest/
+    // penalty and updates the loan + fund totals atomically.
+    match /loan_repayments/{repaymentId} {
+      allow read: if isActiveMember() || isAdmin();
+      allow create: if isActiveMember()
+        && request.resource.data.memberUid == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.amount is number
+        && request.resource.data.amount > 0
+        && get(/databases/$(database)/documents/loans/$(request.resource.data.loanId)).data.memberId == request.auth.uid;
+      allow update: if false;
       allow delete: if false;
     }
 
@@ -147,10 +179,40 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    // Named special-contribution campaigns with a target (§15), e.g.
+    // "Dashain Contribution 2083" — admin-authored, member-visible.
+    match /campaigns/{campaignId} {
+      allow read: if isActiveMember() || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Member-raised issue reports ("report transaction issues" / dispute
+    // handling) — unlike the fully transparent collections above, these can
+    // contain a personal complaint, so only the reporter and admins can
+    // read one, not every active member.
+    match /disputes/{disputeId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.memberUid == request.auth.uid);
+      allow create: if isSignedIn()
+        && request.resource.data.memberUid == request.auth.uid
+        && request.resource.data.status == 'open';
+      // Only an admin resolves one; the reporter can't edit after
+      // submitting (corrections go through admin review, same principle
+      // as contributions/loans).
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
     // Configurable contribution/loan/interest rules (§18/§39). Members need
     // to see these (e.g. before accepting loan terms, §19); only admins
     // change them.
     match /settings/fund_rules {
+      allow read: if isActiveMember() || isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // Admin-configurable member-to-member visibility (§29) — see
+    // PrivacySettings's doc comment for exactly what this gates.
+    match /settings/privacy {
       allow read: if isActiveMember() || isAdmin();
       allow write: if isAdmin();
     }
@@ -164,9 +226,11 @@ service cloud.firestore {
     }
 
     // Aggregated fund summary shown on the transparency dashboard (§6/§54).
+    // Only ever incremented by a Cloud Function alongside the ledger entry
+    // that caused the change — never a direct client write.
     match /fund/summary {
       allow read: if isActiveMember() || isAdmin();
-      allow write: if isAdmin();
+      allow write: if false;
     }
   }
 }

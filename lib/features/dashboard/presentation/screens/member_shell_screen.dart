@@ -4,11 +4,31 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/widgets/adaptive_scaffold.dart';
 
 const _destinations = [
-  AdaptiveDestination(label: 'Home', icon: Icons.home_outlined, selectedIcon: Icons.home),
-  AdaptiveDestination(label: 'Fund', icon: Icons.account_balance_outlined, selectedIcon: Icons.account_balance),
-  AdaptiveDestination(label: 'Loans', icon: Icons.request_quote_outlined, selectedIcon: Icons.request_quote),
-  AdaptiveDestination(label: 'Members', icon: Icons.people_outline, selectedIcon: Icons.people),
-  AdaptiveDestination(label: 'Profile', icon: Icons.person_outline, selectedIcon: Icons.person),
+  AdaptiveDestination(
+    label: 'Home',
+    icon: Icons.home_outlined,
+    selectedIcon: Icons.home,
+  ),
+  AdaptiveDestination(
+    label: 'Fund',
+    icon: Icons.account_balance_outlined,
+    selectedIcon: Icons.account_balance,
+  ),
+  AdaptiveDestination(
+    label: 'Loans',
+    icon: Icons.request_quote_outlined,
+    selectedIcon: Icons.request_quote,
+  ),
+  AdaptiveDestination(
+    label: 'Members',
+    icon: Icons.people_outline,
+    selectedIcon: Icons.people,
+  ),
+  AdaptiveDestination(
+    label: 'Profile',
+    icon: Icons.person_outline,
+    selectedIcon: Icons.person,
+  ),
 ];
 
 /// SRS §52 — Member app shell: Home / Fund / Loans / Members / Profile.

@@ -12,8 +12,16 @@ class _QuickAction {
 }
 
 const _actions = [
-  _QuickAction('Contributions', Icons.volunteer_activism_outlined, RoutePaths.contributions),
-  _QuickAction('Request loan', Icons.request_quote_outlined, RoutePaths.loanRequest),
+  _QuickAction(
+    'Contributions',
+    Icons.volunteer_activism_outlined,
+    RoutePaths.contributions,
+  ),
+  _QuickAction(
+    'Request loan',
+    Icons.request_quote_outlined,
+    RoutePaths.loanRequest,
+  ),
   _QuickAction('Reports', Icons.bar_chart_outlined, RoutePaths.reports),
   _QuickAction('Ledger', Icons.receipt_long_outlined, RoutePaths.transactions),
 ];
@@ -42,7 +50,10 @@ class QuickActionsRow extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(action.icon, color: Theme.of(context).colorScheme.primary),
+                    Icon(
+                      action.icon,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
                       action.label,

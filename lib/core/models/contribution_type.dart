@@ -6,7 +6,7 @@ enum ContributionCategory {
   special;
 
   String get label => switch (this) {
-        ContributionCategory.monthly => 'Monthly',
-        ContributionCategory.special => 'Special',
-      };
+    ContributionCategory.monthly => 'Monthly',
+    ContributionCategory.special => 'Special',
+  };
 }

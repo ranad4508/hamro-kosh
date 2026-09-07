@@ -80,12 +80,21 @@ class FinanceColors extends ThemeExtension<FinanceColors> {
       pending: Color.lerp(pending, other.pending, t)!,
       info: Color.lerp(info, other.info, t)!,
       incomeContainer: Color.lerp(incomeContainer, other.incomeContainer, t)!,
-      onIncomeContainer:
-          Color.lerp(onIncomeContainer, other.onIncomeContainer, t)!,
-      expenseContainer:
-          Color.lerp(expenseContainer, other.expenseContainer, t)!,
-      onExpenseContainer:
-          Color.lerp(onExpenseContainer, other.onExpenseContainer, t)!,
+      onIncomeContainer: Color.lerp(
+        onIncomeContainer,
+        other.onIncomeContainer,
+        t,
+      )!,
+      expenseContainer: Color.lerp(
+        expenseContainer,
+        other.expenseContainer,
+        t,
+      )!,
+      onExpenseContainer: Color.lerp(
+        onExpenseContainer,
+        other.onExpenseContainer,
+        t,
+      )!,
     );
   }
 }

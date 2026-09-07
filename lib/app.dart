@@ -36,7 +36,8 @@ class HamroKoshApp extends ConsumerWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       routerConfig: router,
-      builder: (context, child) => AppLockGate(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) =>
+          AppLockGate(child: child ?? const SizedBox.shrink()),
     );
   }
 }

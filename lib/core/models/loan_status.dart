@@ -14,32 +14,30 @@ enum LoanStatus {
   defaulted;
 
   String get label => switch (this) {
-        LoanStatus.requested => 'Requested',
-        LoanStatus.underReview => 'Under review',
-        LoanStatus.approved => 'Approved',
-        LoanStatus.rejected => 'Rejected',
-        LoanStatus.active => 'Active',
-        LoanStatus.partiallyPaid => 'Partially paid',
-        LoanStatus.overdue => 'Overdue',
-        LoanStatus.completed => 'Completed',
-        LoanStatus.cancelled => 'Cancelled',
-        LoanStatus.defaulted => 'Defaulted',
-      };
+    LoanStatus.requested => 'Requested',
+    LoanStatus.underReview => 'Under review',
+    LoanStatus.approved => 'Approved',
+    LoanStatus.rejected => 'Rejected',
+    LoanStatus.active => 'Active',
+    LoanStatus.partiallyPaid => 'Partially paid',
+    LoanStatus.overdue => 'Overdue',
+    LoanStatus.completed => 'Completed',
+    LoanStatus.cancelled => 'Cancelled',
+    LoanStatus.defaulted => 'Defaulted',
+  };
 
   /// Maps each status to a semantic tone consumed by `StatusBadge`.
   StatusTone get tone => switch (this) {
-        LoanStatus.requested || LoanStatus.underReview => StatusTone.pending,
-        LoanStatus.approved ||
-        LoanStatus.active ||
-        LoanStatus.completed =>
-          StatusTone.positive,
-        LoanStatus.partiallyPaid => StatusTone.info,
-        LoanStatus.overdue ||
-        LoanStatus.rejected ||
-        LoanStatus.defaulted =>
-          StatusTone.negative,
-        LoanStatus.cancelled => StatusTone.neutral,
-      };
+    LoanStatus.requested || LoanStatus.underReview => StatusTone.pending,
+    LoanStatus.approved ||
+    LoanStatus.active ||
+    LoanStatus.completed => StatusTone.positive,
+    LoanStatus.partiallyPaid => StatusTone.info,
+    LoanStatus.overdue ||
+    LoanStatus.rejected ||
+    LoanStatus.defaulted => StatusTone.negative,
+    LoanStatus.cancelled => StatusTone.neutral,
+  };
 }
 
 /// SRS §7/§9 — a member's contribution can be pending verification,
@@ -50,16 +48,16 @@ enum ContributionStatus {
   rejected;
 
   String get label => switch (this) {
-        ContributionStatus.pending => 'Pending',
-        ContributionStatus.verified => 'Verified',
-        ContributionStatus.rejected => 'Rejected',
-      };
+    ContributionStatus.pending => 'Pending',
+    ContributionStatus.verified => 'Verified',
+    ContributionStatus.rejected => 'Rejected',
+  };
 
   StatusTone get tone => switch (this) {
-        ContributionStatus.pending => StatusTone.pending,
-        ContributionStatus.verified => StatusTone.positive,
-        ContributionStatus.rejected => StatusTone.negative,
-      };
+    ContributionStatus.pending => StatusTone.pending,
+    ContributionStatus.verified => StatusTone.positive,
+    ContributionStatus.rejected => StatusTone.negative,
+  };
 }
 
 /// Neutral color intent for [StatusBadge], resolved against [FinanceColors]
@@ -68,10 +66,10 @@ enum StatusTone { positive, negative, pending, info, neutral }
 
 extension StatusToneIcon on StatusTone {
   IconData get icon => switch (this) {
-        StatusTone.positive => Icons.check_circle,
-        StatusTone.negative => Icons.error,
-        StatusTone.pending => Icons.hourglass_top,
-        StatusTone.info => Icons.info,
-        StatusTone.neutral => Icons.remove_circle_outline,
-      };
+    StatusTone.positive => Icons.check_circle,
+    StatusTone.negative => Icons.error,
+    StatusTone.pending => Icons.hourglass_top,
+    StatusTone.info => Icons.info,
+    StatusTone.neutral => Icons.remove_circle_outline,
+  };
 }

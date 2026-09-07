@@ -7,6 +7,7 @@ abstract final class RoutePaths {
   static const register = '/register';
   static const forgotPassword = '/forgot-password';
   static const onboardingTerms = '/onboarding/terms';
+  static const accountPending = '/account-pending';
 
   // Member shell (bottom nav / rail destinations)
   static const home = '/home';
@@ -27,9 +28,13 @@ abstract final class RoutePaths {
   static const profileEdit = '/profile/edit';
   static const changePassword = '/profile/change-password';
   static const loanRequest = '/loans/request';
+  static const campaigns = '/campaigns';
+  static const disputes = '/profile/disputes';
+  static const reportIssue = '/profile/disputes/new';
 
   static String memberDetail(String memberId) => '/members/$memberId';
   static String loanDetail(String loanId) => '/loans/$loanId';
+  static String loanRepay(String loanId) => '/loans/$loanId/repay';
 
   // Admin shell
   static const adminDashboard = '/admin';
@@ -41,4 +46,9 @@ abstract final class RoutePaths {
   static const adminSettings = '/admin/settings';
   static const adminAudit = '/admin/audit';
   static const adminCreateUser = '/admin/members/create';
+  static const adminRecordExpense = '/admin/fund/expense';
+  static const adminCampaigns = '/admin/campaigns';
+  static const adminCreateCampaign = '/admin/campaigns/create';
+  static const adminDisputes = '/admin/disputes';
+  static const adminPrivacySettings = '/admin/privacy';
 }

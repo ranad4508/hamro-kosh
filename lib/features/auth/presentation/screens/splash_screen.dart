@@ -37,13 +37,13 @@ class _SplashScreenState extends State<SplashScreen>
     parent: _controller,
     curve: const Interval(0.35, 0.8, curve: Curves.easeOut),
   );
-  late final Animation<Offset> _textSlide = Tween<Offset>(
-    begin: const Offset(0, 0.4),
-    end: Offset.zero,
-  ).animate(CurvedAnimation(
-    parent: _controller,
-    curve: const Interval(0.35, 0.8, curve: Curves.easeOutCubic),
-  ));
+  late final Animation<Offset> _textSlide =
+      Tween<Offset>(begin: const Offset(0, 0.4), end: Offset.zero).animate(
+        CurvedAnimation(
+          parent: _controller,
+          curve: const Interval(0.35, 0.8, curve: Curves.easeOutCubic),
+        ),
+      );
 
   // Progress indicator: last to appear (80% - 100%).
   late final Animation<double> _progressFade = CurvedAnimation(
@@ -82,10 +82,10 @@ class _SplashScreenState extends State<SplashScreen>
                   child: Text(
                     'HAMRO KOSH',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 4,
-                          color: isDark ? Colors.white : const Color(0xFF2B2A3D),
-                        ),
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 4,
+                      color: isDark ? Colors.white : const Color(0xFF2B2A3D),
+                    ),
                   ),
                 ),
               ),

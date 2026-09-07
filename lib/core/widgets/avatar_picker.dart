@@ -44,7 +44,10 @@ class _AvatarPickerState extends State<AvatarPicker> {
 
     setState(() => _uploading = true);
     try {
-      final url = await _cloudinary.uploadImage(File(picked.path), folder: widget.folder);
+      final url = await _cloudinary.uploadImage(
+        File(picked.path),
+        folder: widget.folder,
+      );
       widget.onUploaded(url);
     } catch (_) {
       if (mounted) {
@@ -84,7 +87,11 @@ class _AvatarPickerState extends State<AvatarPicker> {
               child: CircleAvatar(
                 radius: 16,
                 backgroundColor: Theme.of(context).colorScheme.primary,
-                child: const Icon(Icons.camera_alt, size: 16, color: Colors.white),
+                child: const Icon(
+                  Icons.camera_alt,
+                  size: 16,
+                  color: Colors.white,
+                ),
               ),
             ),
         ],

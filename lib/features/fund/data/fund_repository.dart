@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart' show DateTimeRange;
 
 import '../../../core/models/transaction_type.dart';
 import 'fund_summary.dart';
@@ -14,7 +15,11 @@ class FundRepository {
   final FirebaseFirestore _firestore;
 
   Stream<FundSummary> watchSummary() {
-    return _firestore.collection('fund').doc('summary').snapshots().map(
+    return _firestore
+        .collection('fund')
+        .doc('summary')
+        .snapshots()
+        .map(
           (doc) => doc.exists
               ? FundSummary.fromFirestore(doc.data()!)
               : FundSummary.zero,
@@ -24,6 +29,7 @@ class FundRepository {
   Stream<List<FundTransaction>> watchTransactions({
     int limit = 50,
     TransactionType? type,
+    DateTimeRange? dateRange,
   }) {
     Query<Map<String, dynamic>> query = _firestore
         .collection('transactions')
@@ -33,11 +39,31 @@ class FundRepository {
     if (type != null) {
       query = query.where('type', isEqualTo: type.name);
     }
+    if (dateRange != null) {
+      query = query
+          .where(
+            'date',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(dateRange.start),
+          )
+          .where(
+            'date',
+            isLessThanOrEqualTo: Timestamp.fromDate(
+              DateTime(
+                dateRange.end.year,
+                dateRange.end.month,
+                dateRange.end.day,
+                23,
+                59,
+                59,
+              ),
+            ),
+          );
+    }
 
     return query.snapshots().map(
-          (snapshot) => snapshot.docs
-              .map((doc) => FundTransaction.fromFirestore(doc.id, doc.data()))
-              .toList(),
-        );
+      (snapshot) => snapshot.docs
+          .map((doc) => FundTransaction.fromFirestore(doc.id, doc.data()))
+          .toList(),
+    );
   }
 }

@@ -12,8 +12,9 @@ const supportedAppLocales = [Locale('en'), Locale('ne')];
 class LocaleController extends Notifier<Locale?> {
   @override
   Locale? build() {
-    final stored =
-        ref.read(sharedPreferencesProvider).getString(_localePrefsKey);
+    final stored = ref
+        .read(sharedPreferencesProvider)
+        .getString(_localePrefsKey);
     if (stored == null) return null;
     return supportedAppLocales.firstWhere(
       (locale) => locale.languageCode == stored,

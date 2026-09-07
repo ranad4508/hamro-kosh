@@ -30,26 +30,26 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyAF-ec28WuatrNbaJm1-ji9HCG5jf521D8',
-    appId: '1:147153174017:android:cd6e7ac8c565e65bc98a00',
-    messagingSenderId: '147153174017',
-    projectId: 'hamro-kosh1',
-    storageBucket: 'hamro-kosh1.firebasestorage.app',
+    apiKey: 'AIzaSyBSCHOpTi0PaovLfWuRky80kK9r6QDZZ3g',
+    appId: '1:658475363771:android:a4ce60231f4093f94ea89e',
+    messagingSenderId: '658475363771',
+    projectId: 'hamro-kosh-main',
+    storageBucket: 'hamro-kosh-main.firebasestorage.app',
   );
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyCaL7LzHIcTRo0Riu23I_48L9t7tW1MOlc',
-    appId: '1:147153174017:ios:7bfd608d134d5c6ac98a00',
-    messagingSenderId: '147153174017',
-    projectId: 'hamro-kosh1',
-    storageBucket: 'hamro-kosh1.firebasestorage.app',
+    apiKey: 'AIzaSyAo670IEgkUHZomdE0CHbYIH_1jfCrlmwI',
+    appId: '1:658475363771:ios:135d55da017fc3554ea89e',
+    messagingSenderId: '658475363771',
+    projectId: 'hamro-kosh-main',
+    storageBucket: 'hamro-kosh-main.firebasestorage.app',
     iosBundleId: 'com.hamrokosh.hamroKosh',
   );
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyArBKSqM43hZV1fcYJ30R9PJ1qqaWO-oa8',
-    appId: '1:147153174017:web:90040e9b369832a0c98a00',
-    messagingSenderId: '147153174017',
-    projectId: 'hamro-kosh1',
-    authDomain: 'hamro-kosh1.firebaseapp.com',
-    storageBucket: 'hamro-kosh1.firebasestorage.app',
+    apiKey: 'AIzaSyAH9cnatSljkplsghmKW0LBcF17YvPL9yY',
+    appId: '1:658475363771:web:7d2aea26a3932ba94ea89e',
+    messagingSenderId: '658475363771',
+    projectId: 'hamro-kosh-main',
+    authDomain: 'hamro-kosh-main.firebaseapp.com',
+    storageBucket: 'hamro-kosh-main.firebasestorage.app',
   );
 }

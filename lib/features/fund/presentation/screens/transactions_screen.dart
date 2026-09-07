@@ -3,12 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/models/transaction_type.dart';
+import '../../../../core/widgets/date_filter.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../providers/fund_providers.dart';
 import '../widgets/transaction_tile.dart';
 
-/// SRS §11-13, §42 — full ledger with a type filter, the "never simply
-/// disappears" transparency view.
+/// SRS §11-13, §42, §55 — full ledger with type + date-range filters, the
+/// "never simply disappears" transparency view.
 class TransactionsScreen extends ConsumerStatefulWidget {
   const TransactionsScreen({super.key});
 
@@ -18,10 +19,13 @@ class TransactionsScreen extends ConsumerStatefulWidget {
 
 class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   TransactionType? _filter;
+  DateTimeRange? _dateRange;
 
   @override
   Widget build(BuildContext context) {
-    final transactions = ref.watch(fundTransactionsProvider(_filter));
+    final transactions = ref.watch(
+      ledgerTransactionsProvider((type: _filter, dateRange: _dateRange)),
+    );
 
     return Scaffold(
       appBar: AppBar(title: const Text('Financial Ledger')),
@@ -33,6 +37,13 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
               children: [
+                Padding(
+                  padding: const EdgeInsets.only(right: AppSpacing.sm),
+                  child: DateFilter(
+                    value: _dateRange,
+                    onChanged: (range) => setState(() => _dateRange = range),
+                  ),
+                ),
                 Padding(
                   padding: const EdgeInsets.only(right: AppSpacing.sm),
                   child: ChoiceChip(
@@ -60,10 +71,15 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
               error: (error, _) => AppErrorState(message: '$error'),
               data: (items) {
                 if (items.isEmpty) {
-                  return const EmptyState(
+                  final filtering = _filter != null || _dateRange != null;
+                  return EmptyState(
                     icon: Icons.receipt_long_outlined,
-                    title: 'No transactions yet',
-                    message: 'Every fund movement will be recorded here.',
+                    title: filtering
+                        ? 'No matching transactions'
+                        : 'No transactions yet',
+                    message: filtering
+                        ? 'Try a different type or date range.'
+                        : 'Every fund movement will be recorded here.',
                   );
                 }
                 return ListView.separated(
@@ -82,15 +98,15 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   }
 
   String _typeLabel(TransactionType type) => switch (type) {
-        TransactionType.monthlyContribution => 'Monthly contribution',
-        TransactionType.specialContribution => 'Special contribution',
-        TransactionType.loanDisbursement => 'Loan disbursement',
-        TransactionType.loanRepayment => 'Loan repayment',
-        TransactionType.interestPayment => 'Interest',
-        TransactionType.fundExpense => 'Fund expense',
-        TransactionType.refund => 'Refund',
-        TransactionType.adjustment => 'Adjustment',
-        TransactionType.otherIncome => 'Other income',
-        TransactionType.otherExpenditure => 'Other expenditure',
-      };
+    TransactionType.monthlyContribution => 'Monthly contribution',
+    TransactionType.specialContribution => 'Special contribution',
+    TransactionType.loanDisbursement => 'Loan disbursement',
+    TransactionType.loanRepayment => 'Loan repayment',
+    TransactionType.interestPayment => 'Interest',
+    TransactionType.fundExpense => 'Fund expense',
+    TransactionType.refund => 'Refund',
+    TransactionType.adjustment => 'Adjustment',
+    TransactionType.otherIncome => 'Other income',
+    TransactionType.otherExpenditure => 'Other expenditure',
+  };
 }

@@ -43,8 +43,8 @@ class AppUser {
       phone: data['phone'] as String?,
       photoUrl: data['photoUrl'] as String?,
       role: UserRole.fromName(data['role'] as String?),
-      memberSince: (data['memberSince'] as Timestamp?)?.toDate() ??
-          DateTime.now(),
+      memberSince:
+          (data['memberSince'] as Timestamp?)?.toDate() ?? DateTime.now(),
       isApproved: data['isApproved'] as bool? ?? false,
       isActive: data['isActive'] as bool? ?? true,
       mustChangePassword: data['mustChangePassword'] as bool? ?? false,
@@ -52,14 +52,14 @@ class AppUser {
   }
 
   Map<String, dynamic> toFirestore() => {
-        'fullName': fullName,
-        'email': email,
-        'phone': phone,
-        'photoUrl': photoUrl,
-        'role': role.name,
-        'memberSince': Timestamp.fromDate(memberSince),
-        'isApproved': isApproved,
-        'isActive': isActive,
-        'mustChangePassword': mustChangePassword,
-      };
+    'fullName': fullName,
+    'email': email,
+    'phone': phone,
+    'photoUrl': photoUrl,
+    'role': role.name,
+    'memberSince': Timestamp.fromDate(memberSince),
+    'isApproved': isApproved,
+    'isActive': isActive,
+    'mustChangePassword': mustChangePassword,
+  };
 }

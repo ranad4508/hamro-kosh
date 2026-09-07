@@ -11,11 +11,18 @@ abstract final class AppTheme {
   static ThemeData dark() => _build(Brightness.dark);
 
   static ThemeData _build(Brightness brightness) {
-    final colorScheme = ColorScheme.fromSeed(
+    var colorScheme = ColorScheme.fromSeed(
       seedColor: AppColors.seedPrimary,
       brightness: brightness,
       surfaceTint: Colors.transparent,
     );
+    // Pin the dark background to the reference dashboard's exact navy
+    // (#161826) rather than Material 3's algorithmically-lighter dark
+    // surface tone — the rest of the tonal palette still derives from the
+    // seed above.
+    if (brightness == Brightness.dark) {
+      colorScheme = colorScheme.copyWith(surface: AppColors.darkSurfaceTint);
+    }
 
     final base = ThemeData(
       useMaterial3: true,
@@ -38,9 +45,7 @@ abstract final class AppTheme {
         elevation: 0,
         color: colorScheme.surfaceContainerLow,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: colorScheme.surfaceContainer,
@@ -75,13 +80,13 @@ abstract final class AppTheme {
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
       ),
       chipTheme: base.chipTheme.copyWith(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(999),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
       ),
       extensions: [
         brightness == Brightness.light

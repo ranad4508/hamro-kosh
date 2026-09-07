@@ -6,6 +6,9 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/router/route_paths.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/widgets/empty_state.dart';
+import '../../../admin/data/privacy_settings.dart';
+import '../../../admin/providers/admin_providers.dart';
+import '../../../loans/providers/loans_providers.dart';
 import '../../providers/members_providers.dart';
 
 /// SRS §31 — searchable community member directory.
@@ -22,6 +25,10 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
   @override
   Widget build(BuildContext context) {
     final members = ref.watch(membersProvider);
+    final borrowerIds =
+        ref.watch(outstandingBorrowerIdsProvider).value ?? const <String>{};
+    final privacy =
+        ref.watch(privacySettingsProvider).value ?? PrivacySettings.defaults;
 
     return Scaffold(
       appBar: AppBar(
@@ -30,12 +37,16 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
           preferredSize: const Size.fromHeight(56),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(
-              AppSpacing.md, 0, AppSpacing.md, AppSpacing.sm,
+              AppSpacing.md,
+              0,
+              AppSpacing.md,
+              AppSpacing.sm,
             ),
             child: SearchBar(
               hintText: 'Search members',
               leading: const Icon(Icons.search),
-              onChanged: (value) => setState(() => _query = value.toLowerCase()),
+              onChanged: (value) =>
+                  setState(() => _query = value.toLowerCase()),
             ),
           ),
         ),
@@ -46,10 +57,15 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
         data: (items) {
           final filtered = _query.isEmpty
               ? items
-              : items.where((m) => m.fullName.toLowerCase().contains(_query)).toList();
+              : items
+                    .where((m) => m.fullName.toLowerCase().contains(_query))
+                    .toList();
 
           if (filtered.isEmpty) {
-            return const EmptyState(icon: Icons.people_outline, title: 'No members found');
+            return const EmptyState(
+              icon: Icons.people_outline,
+              title: 'No members found',
+            );
           }
           return ListView.separated(
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
@@ -67,9 +83,20 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
                       : null,
                 ),
                 title: Text(member.fullName),
-                subtitle: Text('Member since ${DateFormatter.monthYear(member.memberSince)}'),
-                trailing: member.hasActiveLoan
-                    ? const Icon(Icons.request_quote_outlined, size: 18)
+                subtitle: Text(
+                  'Member since ${DateFormatter.monthYear(member.memberSince)}',
+                ),
+                trailing:
+                    privacy.showActiveLoanStatus &&
+                        borrowerIds.contains(member.uid)
+                    ? Tooltip(
+                        message: 'Has an outstanding loan',
+                        child: Icon(
+                          Icons.request_quote_outlined,
+                          size: 18,
+                          color: Theme.of(context).colorScheme.tertiary,
+                        ),
+                      )
                     : null,
                 onTap: () => context.push(RoutePaths.memberDetail(member.uid)),
               );

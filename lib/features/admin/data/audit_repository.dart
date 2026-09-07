@@ -13,8 +13,10 @@ class AuditRepository {
         .orderBy('timestamp', descending: true)
         .limit(limit)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => AuditLogEntry.fromFirestore(doc.id, doc.data()))
-            .toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => AuditLogEntry.fromFirestore(doc.id, doc.data()))
+              .toList(),
+        );
   }
 }

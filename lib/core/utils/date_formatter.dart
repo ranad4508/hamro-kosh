@@ -4,10 +4,12 @@ import 'package:intl/intl.dart';
 abstract final class DateFormatter {
   static final _shortDate = DateFormat('MMM d, y');
   static final _monthYear = DateFormat('MMMM y');
+  static final _monthAbbr = DateFormat('MMM');
   static final _dateTime = DateFormat('MMM d, y • h:mm a');
 
   static String shortDate(DateTime date) => _shortDate.format(date);
   static String monthYear(DateTime date) => _monthYear.format(date);
+  static String monthAbbr(DateTime date) => _monthAbbr.format(date);
   static String dateTime(DateTime date) => _dateTime.format(date);
 
   /// "3 days ago" / "in 2 days" style relative label for reminders and

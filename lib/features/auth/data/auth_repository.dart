@@ -56,6 +56,19 @@ class AuthRepository {
     );
 
     await _firestore.collection('users').doc(uid).set(profile.toFirestore());
+
+    // OWASP A07 (identification/authentication) — confirm the member
+    // actually controls this email address before it's used for financial
+    // notifications and the transparency broadcasts. Best-effort: a failure
+    // here (e.g. Firebase's send-verification rate limit) shouldn't block
+    // registration, since admin approval is still the real gate.
+    try {
+      await credential.user!.sendEmailVerification();
+    } catch (_) {
+      // Non-fatal — the member can request another from Firebase's own
+      // "resend verification" flow later if needed.
+    }
+
     return credential;
   }
 

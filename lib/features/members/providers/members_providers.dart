@@ -14,8 +14,8 @@ final membersProvider = StreamProvider<List<MemberDirectoryEntry>>((ref) {
 
 final memberDetailProvider =
     StreamProvider.family<MemberDirectoryEntry?, String>((ref, uid) {
-  return ref.watch(membersRepositoryProvider).watchMember(uid);
-});
+      return ref.watch(membersRepositoryProvider).watchMember(uid);
+    });
 
 /// Admin-only listing (includes pending/inactive members).
 final allMembersProvider = StreamProvider<List<MemberDirectoryEntry>>((ref) {

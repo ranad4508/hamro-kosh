@@ -10,10 +10,11 @@ class AuthFormController extends AsyncNotifier<void> {
   Future<void> build() async {}
 
   Future<bool> signIn({required String email, required String password}) {
-    return _run(() => ref.read(authRepositoryProvider).signIn(
-          email: email,
-          password: password,
-        ));
+    return _run(
+      () => ref
+          .read(authRepositoryProvider)
+          .signIn(email: email, password: password),
+    );
   }
 
   Future<bool> register({
@@ -22,12 +23,16 @@ class AuthFormController extends AsyncNotifier<void> {
     required String phone,
     required String password,
   }) {
-    return _run(() => ref.read(authRepositoryProvider).register(
-          fullName: fullName,
-          email: email,
-          phone: phone,
-          password: password,
-        ));
+    return _run(
+      () => ref
+          .read(authRepositoryProvider)
+          .register(
+            fullName: fullName,
+            email: email,
+            phone: phone,
+            password: password,
+          ),
+    );
   }
 
   Future<bool> sendPasswordReset(String email) {

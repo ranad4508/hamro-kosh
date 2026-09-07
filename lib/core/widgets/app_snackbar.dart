@@ -7,20 +7,56 @@ import 'package:flutter/material.dart';
 /// exact colored-card / bubble-icon / close-button / dot-accent design the
 /// product's UI reference calls for.
 abstract final class AppSnackbar {
-  static void showSuccess(BuildContext context, {required String title, required String message}) {
-    _show(context, title: title, message: message, contentType: ContentType.success);
+  static void showSuccess(
+    BuildContext context, {
+    required String title,
+    required String message,
+  }) {
+    _show(
+      context,
+      title: title,
+      message: message,
+      contentType: ContentType.success,
+    );
   }
 
-  static void showError(BuildContext context, {required String title, required String message}) {
-    _show(context, title: title, message: message, contentType: ContentType.failure);
+  static void showError(
+    BuildContext context, {
+    required String title,
+    required String message,
+  }) {
+    _show(
+      context,
+      title: title,
+      message: message,
+      contentType: ContentType.failure,
+    );
   }
 
-  static void showWarning(BuildContext context, {required String title, required String message}) {
-    _show(context, title: title, message: message, contentType: ContentType.warning);
+  static void showWarning(
+    BuildContext context, {
+    required String title,
+    required String message,
+  }) {
+    _show(
+      context,
+      title: title,
+      message: message,
+      contentType: ContentType.warning,
+    );
   }
 
-  static void showInfo(BuildContext context, {required String title, required String message}) {
-    _show(context, title: title, message: message, contentType: ContentType.help);
+  static void showInfo(
+    BuildContext context, {
+    required String title,
+    required String message,
+  }) {
+    _show(
+      context,
+      title: title,
+      message: message,
+      contentType: ContentType.help,
+    );
   }
 
   static void _show(
@@ -43,6 +79,13 @@ abstract final class AppSnackbar {
           // so the card reads as wide as the screen realistically allows.
           margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
           padding: EdgeInsets.zero,
+          // SnackBar defaults to Clip.hardEdge, which clips anything a child
+          // paints outside its own rounded-rect bounds — including the
+          // bubble icon badge, which `awesome_snackbar_content` deliberately
+          // positions with a *negative* top/left offset so it peeks out
+          // above the card's corner. Without this, that badge gets sliced
+          // off exactly like the "cut off icon" bug this fixes.
+          clipBehavior: Clip.none,
           content: AwesomeSnackbarContent(
             title: title,
             message: message,

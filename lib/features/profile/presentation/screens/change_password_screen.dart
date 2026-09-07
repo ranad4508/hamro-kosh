@@ -16,7 +16,8 @@ class ChangePasswordScreen extends ConsumerStatefulWidget {
   const ChangePasswordScreen({super.key});
 
   @override
-  ConsumerState<ChangePasswordScreen> createState() => _ChangePasswordScreenState();
+  ConsumerState<ChangePasswordScreen> createState() =>
+      _ChangePasswordScreenState();
 }
 
 class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
@@ -38,7 +39,9 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
     try {
-      await ref.read(authRepositoryProvider).changePassword(
+      await ref
+          .read(authRepositoryProvider)
+          .changePassword(
             currentPassword: _currentPassword.text,
             newPassword: _newPassword.text,
           );
@@ -79,7 +82,8 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
               controller: _currentPassword,
               obscureText: true,
               prefixIcon: Icons.lock_outline,
-              validator: (v) => Validators.required(v, field: 'Current password'),
+              validator: (v) =>
+                  Validators.required(v, field: 'Current password'),
             ),
             const SizedBox(height: AppSpacing.md),
             AppTextField(
@@ -95,10 +99,15 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
               controller: _confirmPassword,
               obscureText: true,
               prefixIcon: Icons.lock_reset_outlined,
-              validator: (v) => Validators.confirmPassword(v, _newPassword.text),
+              validator: (v) =>
+                  Validators.confirmPassword(v, _newPassword.text),
             ),
             const SizedBox(height: AppSpacing.xl),
-            AppButton(label: 'Update password', isLoading: _saving, onPressed: _submit),
+            AppButton(
+              label: 'Update password',
+              isLoading: _saving,
+              onPressed: _submit,
+            ),
           ],
         ),
       ),

@@ -26,9 +26,21 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: AppSpacing.sm),
           SegmentedButton<ThemeMode>(
             segments: const [
-              ButtonSegment(value: ThemeMode.light, label: Text('Light'), icon: Icon(Icons.light_mode_outlined)),
-              ButtonSegment(value: ThemeMode.dark, label: Text('Dark'), icon: Icon(Icons.dark_mode_outlined)),
-              ButtonSegment(value: ThemeMode.system, label: Text('System'), icon: Icon(Icons.brightness_auto_outlined)),
+              ButtonSegment(
+                value: ThemeMode.light,
+                label: Text('Light'),
+                icon: Icon(Icons.light_mode_outlined),
+              ),
+              ButtonSegment(
+                value: ThemeMode.dark,
+                label: Text('Dark'),
+                icon: Icon(Icons.dark_mode_outlined),
+              ),
+              ButtonSegment(
+                value: ThemeMode.system,
+                label: Text('System'),
+                icon: Icon(Icons.brightness_auto_outlined),
+              ),
             ],
             selected: {themeMode},
             onSelectionChanged: (selection) => ref
@@ -45,15 +57,18 @@ class SettingsScreen extends ConsumerWidget {
               ButtonSegment(value: Locale('ne'), label: Text('नेपाली')),
             ],
             selected: {locale},
-            onSelectionChanged: (selection) =>
-                ref.read(localeControllerProvider.notifier).setLocale(selection.first),
+            onSelectionChanged: (selection) => ref
+                .read(localeControllerProvider.notifier)
+                .setLocale(selection.first),
           ),
           const SizedBox(height: AppSpacing.xl),
           Text('Security', style: Theme.of(context).textTheme.titleSmall),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('App lock'),
-            subtitle: const Text('Require biometric/device unlock to open the app'),
+            subtitle: const Text(
+              'Require biometric/device unlock to open the app',
+            ),
             value: appLockEnabled,
             onChanged: (value) =>
                 ref.read(appLockSettingProvider.notifier).setEnabled(value),
@@ -61,7 +76,9 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: AppSpacing.xl),
           Text('Notifications', style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: AppSpacing.sm),
-          const _NotificationPreferenceTile(label: 'Contribution confirmations'),
+          const _NotificationPreferenceTile(
+            label: 'Contribution confirmations',
+          ),
           const _NotificationPreferenceTile(label: 'Loan updates'),
           const _NotificationPreferenceTile(label: 'Repayment reminders'),
           const _NotificationPreferenceTile(label: 'Monthly reports'),
@@ -83,7 +100,8 @@ class _NotificationPreferenceTile extends StatefulWidget {
       _NotificationPreferenceTileState();
 }
 
-class _NotificationPreferenceTileState extends State<_NotificationPreferenceTile> {
+class _NotificationPreferenceTileState
+    extends State<_NotificationPreferenceTile> {
   bool _enabled = true;
 
   @override

@@ -7,9 +7,11 @@ import '../../../../core/widgets/fade_slide_in.dart';
 import '../../../../core/widgets/stat_card.dart';
 import '../../data/fund_summary.dart';
 
-/// The metric grid backing SRS §6 (Fund Overview) and §54 (Core
+/// The secondary metric grid backing SRS §6 (Fund Overview) and §54 (Core
 /// Transparency Dashboard) — reused on both the member dashboard and the
-/// admin dashboard.
+/// admin dashboard, below [FundHeroCard]'s available/outstanding/total-fund
+/// breakdown. These four numbers answer "where did the fund's money come
+/// from and go" (SRS §53) without repeating the hero card's own figures.
 class FundSummaryGrid extends StatelessWidget {
   const FundSummaryGrid({super.key, required this.summary});
 
@@ -21,16 +23,29 @@ class FundSummaryGrid extends StatelessWidget {
 
     final tiles = [
       (
-        'Available balance',
-        summary.availableBalance,
-        Icons.account_balance_wallet,
-        Theme.of(context).colorScheme.primary,
+        'Members have given',
+        summary.totalContributions + summary.totalSpecialContributions,
+        Icons.volunteer_activism,
+        finance.income,
       ),
-      ('Total contributed', summary.totalContributions, Icons.volunteer_activism, finance.income),
-      ('Total loaned', summary.totalLoaned, Icons.call_made, finance.info),
-      ('Outstanding loans', summary.outstandingLoans, Icons.hourglass_top, finance.pending),
-      ('Total expenses', summary.totalExpenses, Icons.receipt_long, finance.expense),
-      ('Interest earned', summary.interestEarned, Icons.percent, finance.income),
+      (
+        'Spent by the group',
+        summary.totalExpenses,
+        Icons.receipt_long,
+        finance.expense,
+      ),
+      (
+        'Interest earned',
+        summary.interestEarned,
+        Icons.percent,
+        finance.income,
+      ),
+      (
+        'Owed back to us',
+        summary.outstandingLoans,
+        Icons.hourglass_top,
+        finance.pending,
+      ),
     ];
 
     return GridView.builder(

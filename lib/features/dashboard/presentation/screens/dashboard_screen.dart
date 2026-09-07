@@ -8,6 +8,7 @@ import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/widgets/fade_slide_in.dart';
 import '../../../../core/widgets/section_header.dart';
 import '../../../auth/providers/auth_providers.dart';
+import '../../../fund/presentation/widgets/fund_hero_card.dart';
 import '../../../fund/presentation/widgets/fund_summary_grid.dart';
 import '../../../fund/presentation/widgets/transaction_tile.dart';
 import '../../../fund/providers/fund_providers.dart';
@@ -25,15 +26,22 @@ class DashboardScreen extends ConsumerWidget {
     final summary = ref.watch(fundSummaryProvider);
     final recentTransactions = ref.watch(fundTransactionsProvider(null));
     final announcements = ref.watch(announcementsProvider).value;
+    final unreadCount = ref.watch(unreadNotificationsCountProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          profile == null ? 'Overview' : 'Namaste, ${profile.fullName.split(' ').first}',
+          profile == null
+              ? 'Overview'
+              : 'Namaste, ${profile.fullName.split(' ').first}',
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_outlined),
+            icon: Badge(
+              isLabelVisible: unreadCount > 0,
+              label: Text('$unreadCount'),
+              child: const Icon(Icons.notifications_outlined),
+            ),
             onPressed: () => context.push(RoutePaths.notifications),
           ),
         ],
@@ -66,7 +74,13 @@ class DashboardScreen extends ConsumerWidget {
             summary.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (error, _) => AppErrorState(message: '$error'),
-              data: (data) => FundSummaryGrid(summary: data),
+              data: (data) => Column(
+                children: [
+                  FundHeroCard(summary: data),
+                  const SizedBox(height: AppSpacing.md),
+                  FundSummaryGrid(summary: data),
+                ],
+              ),
             ),
             const SizedBox(height: AppSpacing.lg),
             SectionHeader(

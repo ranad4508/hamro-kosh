@@ -25,7 +25,10 @@ class FundSummary {
 
   /// SRS §6 fund formula: Available = Income − Expenses − Outstanding/Lent.
   double get totalIncome =>
-      totalContributions + totalSpecialContributions + interestEarned + otherIncome;
+      totalContributions +
+      totalSpecialContributions +
+      interestEarned +
+      otherIncome;
 
   static const zero = FundSummary(
     availableBalance: 0,

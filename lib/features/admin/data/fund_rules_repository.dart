@@ -12,8 +12,10 @@ class FundRulesRepository {
 
   Stream<FundRules> watch() {
     return _doc.snapshots().map(
-          (doc) => doc.exists ? FundRules.fromFirestore(doc.data()!) : FundRules.defaults,
-        );
+      (doc) => doc.exists
+          ? FundRules.fromFirestore(doc.data()!)
+          : FundRules.defaults,
+    );
   }
 
   /// SRS §39 — rule changes should ideally also append an audit entry;

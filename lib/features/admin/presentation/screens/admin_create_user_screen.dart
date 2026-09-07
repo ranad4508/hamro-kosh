@@ -1,9 +1,9 @@
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/models/user_role.dart';
+import '../../../../core/services/cloud_functions_service.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_snackbar.dart';
@@ -13,15 +13,17 @@ import '../../../auth/providers/auth_providers.dart';
 /// SRS.md §58 RBAC addition — an admin (or super admin) provisions a new
 /// account directly, skipping the self-registration approval queue. The
 /// actual account creation + "here are your login credentials" email both
-/// happen server-side in `functions/index.js` (`createUserAccount`): a
-/// mobile client must never hold the ability to mint Firebase Auth users
-/// with an arbitrary role, and must never construct the credentials email
-/// itself (that requires the Resend API key, which stays server-only).
+/// happen server-side, in the `createUserAccount` Cloud Function
+/// (`functions/index.js`): a mobile client must never hold the ability to
+/// mint Firebase Auth users with an arbitrary role, and must never construct
+/// the credentials email itself (that requires the Resend API key, which
+/// stays server-only).
 class AdminCreateUserScreen extends ConsumerStatefulWidget {
   const AdminCreateUserScreen({super.key});
 
   @override
-  ConsumerState<AdminCreateUserScreen> createState() => _AdminCreateUserScreenState();
+  ConsumerState<AdminCreateUserScreen> createState() =>
+      _AdminCreateUserScreenState();
 }
 
 class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
@@ -44,27 +46,29 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _submitting = true);
     try {
-      final callable = FirebaseFunctions.instance.httpsCallable('createUserAccount');
-      await callable.call({
-        'fullName': _fullName.text.trim(),
-        'email': _email.text.trim(),
-        'phone': _phone.text.trim(),
-        'role': _role.name,
-      });
+      await ref
+          .read(cloudFunctionsServiceProvider)
+          .createUser(
+            fullName: _fullName.text.trim(),
+            email: _email.text.trim(),
+            phone: _phone.text.trim(),
+            role: _role.name,
+          );
       if (mounted) {
         Navigator.of(context).pop();
         AppSnackbar.showSuccess(
           context,
           title: 'Account created',
-          message: '${_fullName.text.trim()} will receive their login details by email.',
+          message:
+              '${_fullName.text.trim()} will receive their login details by email.',
         );
       }
-    } on FirebaseFunctionsException catch (e) {
+    } on CloudFunctionsApiException catch (e) {
       if (mounted) {
         AppSnackbar.showError(
           context,
           title: 'Could not create account',
-          message: e.message ?? 'Something went wrong. Please try again.',
+          message: e.message,
         );
       }
     } finally {
@@ -117,15 +121,26 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
             const SizedBox(height: AppSpacing.xs),
             SegmentedButton<UserRole>(
               segments: [
-                const ButtonSegment(value: UserRole.member, label: Text('Member')),
+                const ButtonSegment(
+                  value: UserRole.member,
+                  label: Text('Member'),
+                ),
                 if (canCreateAdmins)
-                  const ButtonSegment(value: UserRole.admin, label: Text('Admin')),
+                  const ButtonSegment(
+                    value: UserRole.admin,
+                    label: Text('Admin'),
+                  ),
               ],
               selected: {_role},
-              onSelectionChanged: (selection) => setState(() => _role = selection.first),
+              onSelectionChanged: (selection) =>
+                  setState(() => _role = selection.first),
             ),
             const SizedBox(height: AppSpacing.xl),
-            AppButton(label: 'Create account', isLoading: _submitting, onPressed: _submit),
+            AppButton(
+              label: 'Create account',
+              isLoading: _submitting,
+              onPressed: _submit,
+            ),
           ],
         ),
       ),

@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../core/models/contribution_type.dart';
 import '../../../core/models/loan_status.dart';
+import '../../../core/utils/date_formatter.dart';
 
 /// A member's contribution record (SRS §7-§9).
 class Contribution {
@@ -16,6 +17,9 @@ class Contribution {
     this.reference,
     this.memberUid,
     this.memberName,
+    this.monthsCovered = 1,
+    this.proofUrl,
+    this.campaignId,
   });
 
   final String id;
@@ -31,6 +35,30 @@ class Contribution {
   /// contribution can be traced back to its owning member.
   final String? memberUid;
   final String? memberName;
+
+  /// How many months this single payment covers — a member catching up on
+  /// several months (or paying ahead) records it as one entry rather than
+  /// one per month (matches the reference design's multi-month receipt).
+  /// Always 1 for a special contribution.
+  final int monthsCovered;
+
+  /// Cloudinary URL for an attached payment-proof photo. Optional — cash
+  /// handed directly to an admin doesn't need one (still pending until
+  /// that admin verifies it either way).
+  final String? proofUrl;
+
+  /// SRS §15 — set when this contribution was made toward a named admin
+  /// campaign (e.g. "Dashain Contribution 2083") rather than an ad-hoc
+  /// special contribution.
+  final String? campaignId;
+
+  /// e.g. "Covers Jan – May 2026" for a 5-month catch-up payment, or just
+  /// the month itself when `monthsCovered == 1`.
+  String get coveredMonthsLabel {
+    if (monthsCovered <= 1) return DateFormatter.monthYear(date);
+    final lastMonth = DateTime(date.year, date.month + monthsCovered - 1);
+    return 'Covers ${DateFormatter.monthYear(date)} – ${DateFormatter.monthYear(lastMonth)}';
+  }
 
   factory Contribution.fromFirestore(String id, Map<String, dynamic> data) {
     return Contribution(
@@ -50,18 +78,24 @@ class Contribution {
       reference: data['reference'] as String?,
       memberUid: data['memberUid'] as String?,
       memberName: data['memberName'] as String?,
+      monthsCovered: (data['monthsCovered'] as num?)?.toInt() ?? 1,
+      proofUrl: data['proofUrl'] as String?,
+      campaignId: data['campaignId'] as String?,
     );
   }
 
   Map<String, dynamic> toFirestore() => {
-        'category': category.name,
-        'amount': amount,
-        'date': Timestamp.fromDate(date),
-        'status': status.name,
-        'occasionName': occasionName,
-        'paymentMethod': paymentMethod,
-        'reference': reference,
-        'memberUid': memberUid,
-        'memberName': memberName,
-      };
+    'category': category.name,
+    'amount': amount,
+    'date': Timestamp.fromDate(date),
+    'status': status.name,
+    'occasionName': occasionName,
+    'paymentMethod': paymentMethod,
+    'reference': reference,
+    'memberUid': memberUid,
+    'memberName': memberName,
+    'monthsCovered': monthsCovered,
+    'proofUrl': proofUrl,
+    'campaignId': campaignId,
+  };
 }

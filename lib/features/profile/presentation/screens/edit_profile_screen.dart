@@ -49,7 +49,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
     setState(() => _saving = true);
     try {
-      await ref.read(authRepositoryProvider).updateProfile(
+      await ref
+          .read(authRepositoryProvider)
+          .updateProfile(
             uid: uid,
             fullName: _fullName.text.trim(),
             phone: _phone.text.trim(),
@@ -68,7 +70,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         AppSnackbar.showError(
           context,
           title: 'Could not save',
-          message: 'Something went wrong updating your profile. Please try again.',
+          message:
+              'Something went wrong updating your profile. Please try again.',
         );
       }
     } finally {
@@ -107,7 +110,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               validator: Validators.phone,
             ),
             const SizedBox(height: AppSpacing.xl),
-            AppButton(label: 'Save changes', isLoading: _saving, onPressed: _save),
+            AppButton(
+              label: 'Save changes',
+              isLoading: _saving,
+              onPressed: _save,
+            ),
           ],
         ),
       ),
