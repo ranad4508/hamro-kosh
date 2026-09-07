@@ -3,12 +3,22 @@ import 'package:flutter/material.dart' show DateTimeRange;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/transaction_type.dart';
+import '../data/fund_account.dart';
+import '../data/fund_account_repository.dart';
 import '../data/fund_repository.dart';
 import '../data/fund_summary.dart';
 import '../data/fund_transaction.dart';
 
 final fundRepositoryProvider = Provider<FundRepository>((ref) {
   return FundRepository(FirebaseFirestore.instance);
+});
+
+final fundAccountRepositoryProvider = Provider<FundAccountRepository>((ref) {
+  return FundAccountRepository(FirebaseFirestore.instance);
+});
+
+final fundAccountProvider = StreamProvider<FundAccount>((ref) {
+  return ref.watch(fundAccountRepositoryProvider).watch();
 });
 
 final fundSummaryProvider = StreamProvider<FundSummary>((ref) {
@@ -60,7 +70,7 @@ final monthlyFundGrowthProvider =
                   (t.date.year - start.year) * 12 +
                   (t.date.month - start.month);
               if (index < 0 || index >= months) continue;
-              if (t.type.isInflow) {
+              if (t.isInflow) {
                 income[index] += t.amount;
               } else {
                 expense[index] += t.amount;

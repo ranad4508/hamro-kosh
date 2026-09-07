@@ -11,6 +11,7 @@ class AppTextField extends StatefulWidget {
     this.keyboardType,
     this.validator,
     this.prefixIcon,
+    this.prefixText,
     this.textInputAction,
     this.autofillHints,
     this.enabled = true,
@@ -23,6 +24,11 @@ class AppTextField extends StatefulWidget {
   final TextInputType? keyboardType;
   final String? Function(String?)? validator;
   final IconData? prefixIcon;
+
+  /// A plain text prefix (e.g. `'Rs. '`) — used instead of [prefixIcon] for
+  /// amount fields, since Material has no Nepali Rupee icon and
+  /// `Icons.currency_rupee` renders the Indian Rupee (₹) glyph.
+  final String? prefixText;
   final TextInputAction? textInputAction;
   final Iterable<String>? autofillHints;
   final bool enabled;
@@ -51,6 +57,7 @@ class _AppTextFieldState extends State<AppTextField> {
         prefixIcon: widget.prefixIcon == null
             ? null
             : Icon(widget.prefixIcon, size: 20),
+        prefixText: widget.prefixText,
         suffixIcon: widget.obscureText
             ? IconButton(
                 icon: Icon(

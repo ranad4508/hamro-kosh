@@ -10,9 +10,14 @@ const _destinations = [
     selectedIcon: Icons.home,
   ),
   AdaptiveDestination(
-    label: 'Fund',
-    icon: Icons.account_balance_outlined,
-    selectedIcon: Icons.account_balance,
+    label: 'Ledger',
+    icon: Icons.receipt_long_outlined,
+    selectedIcon: Icons.receipt_long,
+  ),
+  AdaptiveDestination(
+    label: 'Give',
+    icon: Icons.volunteer_activism_outlined,
+    selectedIcon: Icons.volunteer_activism,
   ),
   AdaptiveDestination(
     label: 'Loans',
@@ -24,17 +29,15 @@ const _destinations = [
     icon: Icons.people_outline,
     selectedIcon: Icons.people,
   ),
-  AdaptiveDestination(
-    label: 'Profile',
-    icon: Icons.person_outline,
-    selectedIcon: Icons.person,
-  ),
 ];
 
-/// SRS §52 — Member app shell: Home / Fund / Loans / Members / Profile.
-/// Contributions, Transactions, Reports, and Notifications are reached from
-/// Home's quick actions and the Profile menu rather than crowding a sixth
-/// or seventh bottom-nav tab (Material's own guidance caps a bar at ~5).
+/// Member app shell: Home / Ledger / Give / Loans / Members
+/// (`design_spec.md` §2's member `.tb` tab list — matches the design's
+/// 5-tab bottom bar rather than the underlying SRS §52's nine top-level
+/// sections; Fund's summary content lives on Home, and Contributions/
+/// Transactions/Reports/Notifications/Profile are reached from Home's
+/// quick actions and each screen's header rather than crowding a sixth or
+/// seventh bottom-nav tab.
 class MemberShellScreen extends StatelessWidget {
   const MemberShellScreen({super.key, required this.navigationShell});
 

@@ -5,7 +5,9 @@ import '../services/shared_preferences_provider.dart';
 
 const _themeModePrefsKey = 'hamro_kosh.theme_mode';
 
-/// Persists the user's light/dark/system preference across launches.
+/// Persists the user's light/dark/system appearance preference across
+/// launches. Defaults to [ThemeMode.system] so the app follows the OS-level
+/// setting until the member explicitly overrides it from Settings.
 class ThemeModeController extends Notifier<ThemeMode> {
   @override
   ThemeMode build() {

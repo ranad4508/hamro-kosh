@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/models/loan_status.dart';
+import '../../../../core/router/route_paths.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/widgets/stat_card.dart';
+import '../../../contributions/providers/contributions_providers.dart';
 import '../../../fund/presentation/widgets/fund_hero_card.dart';
 import '../../../fund/presentation/widgets/fund_summary_grid.dart';
 import '../../../fund/providers/fund_providers.dart';
@@ -12,8 +17,12 @@ import '../../../loans/providers/loans_providers.dart';
 import '../../../members/providers/members_providers.dart';
 import '../widgets/admin_more_menu.dart';
 
-/// SRS §34 — admin dashboard: fund position + what needs the admin's
-/// attention right now (pending members, pending loans).
+/// The admin app's home question is "what is waiting on me", not the
+/// balance (`design_spec.md` §3, screen `3a`) — a "waiting on you" card
+/// leads, with the fund position underneath for reference. There is no
+/// membership-approval queue here: self-registration and admin-provisioned
+/// accounts are both immediately active, so the only things ever waiting
+/// on an admin are loan requests and payments to verify.
 class AdminDashboardScreen extends ConsumerWidget {
   const AdminDashboardScreen({super.key});
 
@@ -23,17 +32,68 @@ class AdminDashboardScreen extends ConsumerWidget {
     final members = ref.watch(allMembersProvider).value ?? const [];
     final pendingLoans =
         ref.watch(allLoansProvider(LoanStatus.requested)).value ?? const [];
+    final pendingContributions =
+        ref.watch(allContributionsProvider(ContributionStatus.pending)).value ??
+        const [];
 
-    final pendingMembers = members.where((m) => !m.isApproved).length;
+    final pendingContributionsTotal = pendingContributions.fold<double>(
+      0,
+      (total, c) => total + c.amount,
+    );
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Admin Dashboard'),
+        title: const Text('Admin dashboard'),
         actions: const [AdminMoreMenu()],
       ),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: context.colors.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: context.colors.accentDark1),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'WAITING ON YOU',
+                  style: Theme.of(context).textTheme.labelSmall,
+                ),
+                const SizedBox(height: 10),
+                if (pendingLoans.isEmpty && pendingContributions.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      "Nothing waiting — you're all caught up.",
+                      style: TextStyle(color: context.colors.textTertiary),
+                    ),
+                  ),
+                if (pendingLoans.isNotEmpty)
+                  _WaitingRow(
+                    icon: Icons.request_quote_outlined,
+                    title:
+                        '${pendingLoans.length} loan request${pendingLoans.length == 1 ? '' : 's'}',
+                    subtitle: CurrencyFormatter.format(
+                      pendingLoans.fold(0.0, (t, l) => t + l.amount),
+                    ),
+                    onTap: () => context.go(RoutePaths.adminLoans),
+                  ),
+                if (pendingContributions.isNotEmpty)
+                  _WaitingRow(
+                    icon: Icons.receipt_long_outlined,
+                    title:
+                        '${pendingContributions.length} payment${pendingContributions.length == 1 ? '' : 's'} to verify',
+                    subtitle: CurrencyFormatter.format(pendingContributionsTotal),
+                    onTap: () => context.go(RoutePaths.adminFund),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
           Row(
             children: [
               Expanded(
@@ -46,19 +106,12 @@ class AdminDashboardScreen extends ConsumerWidget {
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: StatCard(
-                  label: 'Pending approvals',
-                  value: '$pendingMembers',
-                  icon: Icons.person_add_alt_outlined,
-                  accentColor: Theme.of(context).colorScheme.tertiary,
+                  label: 'Loans outstanding',
+                  value: '${pendingLoans.length}',
+                  icon: Icons.pending_actions_outlined,
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          StatCard(
-            label: 'Pending loan requests',
-            value: '${pendingLoans.length}',
-            icon: Icons.pending_actions_outlined,
           ),
           const SizedBox(height: AppSpacing.lg),
           summary.when(
@@ -73,6 +126,54 @@ class AdminDashboardScreen extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _WaitingRow extends StatelessWidget {
+  const _WaitingRow({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            Icon(icon, size: 19, color: colors.accentLight),
+            const SizedBox(width: 11),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(fontSize: 12, color: colors.textTertiary),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: colors.textQuaternary),
+          ],
+        ),
       ),
     );
   }

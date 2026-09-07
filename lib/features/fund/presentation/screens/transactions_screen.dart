@@ -3,8 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/models/transaction_type.dart';
+import '../../../../core/services/csv_export_service.dart';
+import '../../../../core/utils/date_formatter.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/date_filter.dart';
 import '../../../../core/widgets/empty_state.dart';
+import '../../data/fund_transaction.dart';
 import '../../providers/fund_providers.dart';
 import '../widgets/transaction_tile.dart';
 
@@ -28,7 +32,20 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Financial Ledger')),
+      appBar: AppBar(
+        title: const Text('Financial Ledger'),
+        actions: [
+          IconButton(
+            tooltip: 'Export CSV',
+            icon: const Icon(Icons.ios_share_outlined),
+            onPressed: () async {
+              final items = transactions.value;
+              if (items == null || items.isEmpty) return;
+              await _exportLedgerCsv(context, items);
+            },
+          ),
+        ],
+      ),
       body: Column(
         children: [
           SizedBox(
@@ -109,4 +126,36 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     TransactionType.otherIncome => 'Other income',
     TransactionType.otherExpenditure => 'Other expenditure',
   };
+}
+
+/// SRS §43 — exports the currently filtered ledger view as CSV.
+Future<void> _exportLedgerCsv(
+  BuildContext context,
+  List<FundTransaction> items,
+) async {
+  final rows = <List<dynamic>>[
+    ['Date', 'Type', 'Description', 'Member/Recipient', 'Direction', 'Amount (NPR)'],
+    for (final t in items)
+      [
+        DateFormatter.shortDate(t.date),
+        t.type.name,
+        t.description,
+        t.memberName ?? t.recipient ?? '',
+        t.isInflow ? 'In' : 'Out',
+        t.amount.toStringAsFixed(2),
+      ],
+  ];
+  await CsvExportService.exportAndShare(
+    fileName:
+        'hamro_kosh_ledger_${DateTime.now().toIso8601String().split('T').first}.csv',
+    rows: rows,
+    shareText: 'Hamro Kosh financial ledger export',
+  );
+  if (context.mounted) {
+    AppSnackbar.showSuccess(
+      context,
+      title: 'Export ready',
+      message: '${items.length} transactions exported.',
+    );
+  }
 }

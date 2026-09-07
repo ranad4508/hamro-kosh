@@ -8,17 +8,27 @@ import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/models/transaction_type.dart';
 import '../../../fund/providers/fund_providers.dart';
+import '../../data/report_csv_export.dart';
 
 /// SRS §26-§27, §30 — monthly/yearly reports scoped to their actual period
 /// (computed from the ledger, not the single all-time fund snapshot), plus
 /// the all-time fund position and a "fund growth" trend chart.
-class ReportsScreen extends StatelessWidget {
+class ReportsScreen extends ConsumerWidget {
   const ReportsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Reports')),
+      appBar: AppBar(
+        title: const Text('Reports'),
+        actions: [
+          IconButton(
+            tooltip: 'Export CSV',
+            icon: const Icon(Icons.ios_share_outlined),
+            onPressed: () => exportFundReportCsv(ref, context),
+          ),
+        ],
+      ),
       body: const ReportsView(),
     );
   }
@@ -85,10 +95,10 @@ class _PeriodReportTab extends ConsumerWidget {
       error: (error, _) => AppErrorState(message: '$error'),
       data: (items) {
         final income = items
-            .where((t) => t.type.isInflow)
+            .where((t) => t.isInflow)
             .fold<double>(0, (s, t) => s + t.amount);
         final expenses = items
-            .where((t) => !t.type.isInflow)
+            .where((t) => !t.isInflow)
             .fold<double>(0, (s, t) => s + t.amount);
         final loansDisbursed = items
             .where((t) => t.type == TransactionType.loanDisbursement)

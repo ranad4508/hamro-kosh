@@ -4,94 +4,215 @@ import 'app_colors.dart';
 import 'app_text_theme.dart';
 import 'finance_colors.dart';
 
-/// Builds the app's light and dark [ThemeData]. Both are Material 3,
-/// generated from the same brand seed color so they stay visually related.
+/// Builds the app's [ThemeData] for both brightnesses from the same
+/// Nocturne token roles (`app_colors.dart`) — the reference design was
+/// drawn dark-only, but the app itself supports light/dark/system so it
+/// respects both the OS-level appearance and the in-app toggle
+/// (`ThemeModeController`). Every color comes from the resolved
+/// [AppColors] palette, not a Material-3 seed derivation, so both themes
+/// stay internally consistent with each other and with the design tokens.
 abstract final class AppTheme {
-  static ThemeData light() => _build(Brightness.light);
-  static ThemeData dark() => _build(Brightness.dark);
+  static ThemeData light() => _build(AppColors.light, Brightness.light);
+  static ThemeData dark() => _build(AppColors.dark, Brightness.dark);
 
-  static ThemeData _build(Brightness brightness) {
-    var colorScheme = ColorScheme.fromSeed(
-      seedColor: AppColors.seedPrimary,
+  static ThemeData _build(AppColors colors, Brightness brightness) {
+    final colorScheme = ColorScheme(
       brightness: brightness,
+      surface: colors.bg,
+      onSurface: colors.textPrimary,
+      surfaceContainerLowest: colors.bg,
+      surfaceContainerLow: colors.surface,
+      surfaceContainer: colors.surface,
+      surfaceContainerHigh: colors.surfaceSunken,
+      surfaceContainerHighest: colors.surfaceSunken,
       surfaceTint: Colors.transparent,
+      onSurfaceVariant: colors.textTertiary,
+      outline: colors.textQuaternary,
+      outlineVariant: colors.divider,
+      primary: colors.accent,
+      onPrimary: brightness == Brightness.dark ? colors.bg : Colors.white,
+      primaryContainer: colors.accentDark1,
+      onPrimaryContainer: colors.accentFaintBg,
+      secondary: colors.accent2,
+      onSecondary: brightness == Brightness.dark ? colors.bg : Colors.white,
+      secondaryContainer: colors.accent2Dark,
+      onSecondaryContainer: colors.accentFaintBg,
+      tertiary: colors.accentLight,
+      onTertiary: brightness == Brightness.dark ? colors.bg : Colors.white,
+      error: colors.warning,
+      onError: Colors.white,
+      errorContainer: colors.warningSurface,
+      onErrorContainer: colors.warning,
+      inversePrimary: colors.accentDark1,
+      inverseSurface: colors.textPrimary,
+      onInverseSurface: colors.bg,
+      shadow: Colors.black,
+      scrim: Colors.black,
     );
-    // Pin the dark background to the reference dashboard's exact navy
-    // (#161826) rather than Material 3's algorithmically-lighter dark
-    // surface tone — the rest of the tonal palette still derives from the
-    // seed above.
-    if (brightness == Brightness.dark) {
-      colorScheme = colorScheme.copyWith(surface: AppColors.darkSurfaceTint);
-    }
 
     final base = ThemeData(
       useMaterial3: true,
       brightness: brightness,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: colorScheme.surface,
+      scaffoldBackgroundColor: colors.bg,
+      canvasColor: colors.bg,
+      dividerColor: colors.divider,
+      splashFactory: InkRipple.splashFactory,
     );
 
     return base.copyWith(
-      textTheme: buildAppTextTheme(base.textTheme),
+      textTheme: buildAppTextTheme(colors),
       appBarTheme: AppBarTheme(
-        backgroundColor: colorScheme.surface,
-        foregroundColor: colorScheme.onSurface,
+        backgroundColor: colors.bg,
+        foregroundColor: colors.textPrimary,
         surfaceTintColor: Colors.transparent,
         centerTitle: false,
         elevation: 0,
-        scrolledUnderElevation: 1,
+        scrolledUnderElevation: 0,
       ),
       cardTheme: CardThemeData(
         elevation: 0,
-        color: colorScheme.surfaceContainerLow,
+        color: colors.surface,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(color: colors.neutralRing),
+        ),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: colorScheme.surfaceContainer,
+        backgroundColor: colors.surfaceFooter,
         surfaceTintColor: Colors.transparent,
-        indicatorColor: colorScheme.secondaryContainer,
+        indicatorColor: Colors.transparent,
+        height: 64,
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return TextStyle(
+            fontSize: 9,
+            fontWeight: FontWeight.w500,
+            color: selected ? colors.accent : colors.textTertiary,
+          );
+        }),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return IconThemeData(
+            size: 22,
+            color: selected ? colors.accent : colors.textTertiary,
+          );
+        }),
       ),
       navigationRailTheme: NavigationRailThemeData(
-        backgroundColor: colorScheme.surfaceContainer,
+        backgroundColor: colors.surfaceFooter,
         useIndicator: true,
-        indicatorColor: colorScheme.secondaryContainer,
+        indicatorColor: colors.accentDark2,
+        selectedIconTheme: IconThemeData(color: colors.accent),
+        unselectedIconTheme: IconThemeData(color: colors.textTertiary),
+        selectedLabelTextStyle: TextStyle(color: colors.accent),
+        unselectedLabelTextStyle: TextStyle(color: colors.textTertiary),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
+          backgroundColor: colors.accent,
+          foregroundColor: colorScheme.onPrimary,
+          disabledBackgroundColor: colors.accent.withValues(alpha: 0.35),
           minimumSize: const Size.fromHeight(48),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
+          foregroundColor: colors.accent,
+          side: BorderSide(color: colors.accent),
           minimumSize: const Size.fromHeight(48),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(foregroundColor: colors.accent),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(foregroundColor: colors.textSecondary),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+        fillColor: colors.surfaceSunken,
+        labelStyle: TextStyle(color: colors.textTertiary),
+        hintStyle: TextStyle(color: colors.textQuaternary),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: colors.neutralRing),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: colors.neutralRing),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: colors.accent, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: const BorderRadius.all(Radius.circular(8)),
+          borderSide: BorderSide(color: colors.warning),
         ),
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 14,
+          horizontal: 13,
+          vertical: 13,
         ),
       ),
       chipTheme: base.chipTheme.copyWith(
+        backgroundColor: colors.surfaceSunken,
+        selectedColor: colors.accentDark1,
+        labelStyle: TextStyle(color: colors.textPrimary),
+        side: BorderSide(color: colors.neutralRing),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
       ),
+      dividerTheme: DividerThemeData(color: colors.divider, space: 1),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: colors.surfaceFooter,
+        surfaceTintColor: Colors.transparent,
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: colors.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: colors.surfaceSunken,
+        contentTextStyle: TextStyle(color: colors.textPrimary),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+      radioTheme: RadioThemeData(
+        fillColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? colors.accent
+              : colors.neutralRing,
+        ),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        fillColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? colors.accent
+              : Colors.transparent,
+        ),
+        side: BorderSide(color: colors.neutralRing, width: 1.5),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStatePropertyAll(colors.textPrimary),
+        trackColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? colors.accent
+              : colors.surfaceSunken,
+        ),
+      ),
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: colors.accent,
+        linearTrackColor: colors.divider,
+      ),
       extensions: [
-        brightness == Brightness.light
-            ? FinanceColors.light
-            : FinanceColors.dark,
+        colors,
+        brightness == Brightness.dark ? FinanceColors.dark : FinanceColors.light,
       ],
     );
   }

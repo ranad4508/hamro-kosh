@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/models/loan_category.dart';
+import '../../../../core/models/loan_status.dart';
 import '../../../../core/router/route_paths.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/widgets/app_button.dart';
@@ -53,6 +55,11 @@ class LoanDetailScreen extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(data.purpose),
+              if (data.status == LoanStatus.approved ||
+                  data.status == LoanStatus.active) ...[
+                const SizedBox(height: AppSpacing.md),
+                _WhatTheGroupAgreedCard(loanId: loanId),
+              ],
               const SizedBox(height: AppSpacing.lg),
               const SectionHeader(title: 'Loan terms'),
               const SizedBox(height: AppSpacing.sm),
@@ -163,6 +170,49 @@ class LoanDetailScreen extends ConsumerWidget {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+/// The design's `2h` "what the group agreed" card — a loan is drawn from
+/// money every member put in together, so its amount and repayment
+/// progress are visible fund-wide (SRS §25/§54), while what it's actually
+/// for stays between the borrower and the committee.
+class _WhatTheGroupAgreedCard extends StatelessWidget {
+  const _WhatTheGroupAgreedCard({required this.loanId});
+
+  final String loanId;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: colors.surfaceSunken,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: colors.accentDark1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'This loan comes out of money every member put in together. '
+            'Your name, the amount, and your repayment progress are '
+            'visible to every member in the ledger. What you are '
+            'borrowing for stays between you and the committee.',
+            style: TextStyle(fontSize: 12.5, color: colors.textSecondary, height: 1.5),
+          ),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: () => context.push(RoutePaths.profileTerms),
+            child: Text(
+              'Read the full terms and conditions',
+              style: TextStyle(fontSize: 12.5, color: colors.accent),
+            ),
+          ),
+        ],
       ),
     );
   }

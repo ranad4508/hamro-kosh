@@ -93,7 +93,7 @@ class _AdminRecordExpenseScreenState
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
-              prefixIcon: Icons.currency_rupee,
+              prefixText: 'Rs. ',
               validator: Validators.positiveAmount,
             ),
             const SizedBox(height: AppSpacing.md),

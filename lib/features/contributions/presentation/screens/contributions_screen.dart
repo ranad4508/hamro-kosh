@@ -40,6 +40,7 @@ class ContributionsScreen extends StatelessWidget {
           ),
         ),
         floatingActionButton: FloatingActionButton.extended(
+          heroTag: 'contributions_fab',
           onPressed: () => context.push(RoutePaths.addContribution),
           icon: const Icon(Icons.add),
           label: const Text('Add contribution'),

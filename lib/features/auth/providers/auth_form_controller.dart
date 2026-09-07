@@ -2,18 +2,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'auth_providers.dart';
 
-/// Drives the loading/error state for sign-in, registration, and password
-/// reset submissions so screens just watch an [AsyncValue] instead of
-/// managing `isLoading`/`errorText` booleans by hand.
+/// Wraps sign-in/register/password-reset/change-password calls in
+/// [AsyncValue.guard] so screens get a consistent `isLoading`/`hasError`
+/// to watch, with the *actual* [AuthFailure] preserved in the error state —
+/// screens read `error.toString()` for a specific message rather than a
+/// hardcoded generic string.
 class AuthFormController extends AsyncNotifier<void> {
   @override
   Future<void> build() async {}
 
-  Future<bool> signIn({required String email, required String password}) {
+  Future<bool> _run(Future<void> Function() action) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(action);
+    return !state.hasError;
+  }
+
+  Future<bool> signIn(String email, String password) {
     return _run(
-      () => ref
-          .read(authRepositoryProvider)
-          .signIn(email: email, password: password),
+      () => ref.read(authRepositoryProvider).signIn(email, password),
     );
   }
 
@@ -41,11 +47,18 @@ class AuthFormController extends AsyncNotifier<void> {
     );
   }
 
-  Future<bool> _run(Future<void> Function() action) async {
-    state = const AsyncLoading();
-    final result = await AsyncValue.guard(action);
-    state = result;
-    return !result.hasError;
+  Future<bool> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) {
+    return _run(
+      () => ref
+          .read(authRepositoryProvider)
+          .changePassword(
+            currentPassword: currentPassword,
+            newPassword: newPassword,
+          ),
+    );
   }
 }
 

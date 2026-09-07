@@ -8,18 +8,25 @@ abstract final class RoutePaths {
   static const forgotPassword = '/forgot-password';
   static const onboardingTerms = '/onboarding/terms';
   static const accountPending = '/account-pending';
+  static const forcedPasswordChange = '/set-password';
 
-  // Member shell (bottom nav / rail destinations)
+  // Member shell (bottom nav / rail destinations) — Home / Ledger / Give /
+  // Loans / Members, per `design_spec.md` §2's member `.tb` tab list.
   static const home = '/home';
-  static const fund = '/fund';
+  static const ledger = '/transactions';
+  static const give = '/give';
   static const loans = '/loans';
   static const members = '/members';
+
+  // Member — reached via the avatar in each tab's header, not a tab itself
+  // (`design_spec.md`'s home screen header pattern).
   static const profile = '/profile';
+  // Retained for the fund-overview content folded into Home (§1a) — no
+  // longer a tab, but still a valid deep-link target.
+  static const fund = '/fund';
 
   // Member — reached via quick actions / profile menu, not tabs
-  static const contributions = '/contributions';
   static const addContribution = '/contributions/add';
-  static const transactions = '/transactions';
   static const reports = '/reports';
   static const notifications = '/notifications';
   static const announcements = '/announcements';
@@ -44,9 +51,12 @@ abstract final class RoutePaths {
   static const adminReports = '/admin/reports';
   static const adminNotifications = '/admin/notifications';
   static const adminSettings = '/admin/settings';
+  static const adminFundRules = '/admin/fund-rules';
   static const adminAudit = '/admin/audit';
   static const adminCreateUser = '/admin/members/create';
   static const adminRecordExpense = '/admin/fund/expense';
+  static const adminRecordContribution = '/admin/fund/record-contribution';
+  static const adminCorrectTransaction = '/admin/fund/correct';
   static const adminCampaigns = '/admin/campaigns';
   static const adminCreateCampaign = '/admin/campaigns/create';
   static const adminDisputes = '/admin/disputes';

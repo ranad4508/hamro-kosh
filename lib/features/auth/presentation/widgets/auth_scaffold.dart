@@ -2,33 +2,35 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/asset_paths.dart';
+import '../../../../core/widgets/bilingual_text.dart';
 
 /// Shared chrome (logo, title, subtitle, scrollable body) for the
-/// login/register/forgot-password screens so only the form fields differ.
+/// register/sign-in/forgot-password/set-password screens so only the form
+/// fields differ. Titles are bilingual (`design_spec.md` §4a/§5) since the
+/// join screen is the one place a member chooses which language leads.
 class AuthScaffold extends StatelessWidget {
   const AuthScaffold({
     super.key,
-    required this.title,
-    required this.subtitle,
+    required this.titleEn,
+    required this.titleNe,
+    required this.subtitleEn,
+    required this.subtitleNe,
     required this.children,
     this.showLogo = true,
   });
 
-  final String title;
-  final String subtitle;
+  final String titleEn;
+  final String titleNe;
+  final String subtitleEn;
+  final String subtitleNe;
   final List<Widget> children;
   final bool showLogo;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final canPop = Navigator.canPop(context);
 
     return Scaffold(
-      // Register and Forgot-password are pushed on top of Login, but this
-      // shared scaffold has no AppBar (an AppBar would auto-add a back
-      // button) — add one explicitly whenever there's somewhere to go back
-      // to, so it's never a dead end back to the OS.
       body: SafeArea(
         child: Stack(
           children: [
@@ -51,13 +53,16 @@ class AuthScaffold extends StatelessWidget {
                         ),
                         const SizedBox(height: AppSpacing.lg),
                       ],
-                      Text(title, style: theme.textTheme.headlineSmall),
+                      BilingualText(
+                        titleEn,
+                        titleNe,
+                        style: Theme.of(context).textTheme.headlineMedium,
+                      ),
                       const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        subtitle,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
+                      BilingualText(
+                        subtitleEn,
+                        subtitleNe,
+                        style: Theme.of(context).textTheme.bodyMedium,
                       ),
                       const SizedBox(height: AppSpacing.xl),
                       ...children,

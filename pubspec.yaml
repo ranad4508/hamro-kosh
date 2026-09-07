@@ -27,6 +27,7 @@ dependencies:
   cloud_firestore: ^6.9.0
   firebase_storage: ^13.5.0
   firebase_messaging: ^16.6.0
+  firebase_app_check: ^0.4.7
 
   # Local persistence & device capability
   shared_preferences: ^2.5.5
@@ -34,12 +35,22 @@ dependencies:
   image_picker: ^1.2.3
   cached_network_image: ^3.4.1
 
+  # Design system
+  google_fonts: ^8.2.1
+
+  # Bikram Sambat (Nepali) calendar — every date in the reference design is
+  # shown in BS, e.g. "2 Bhadra 2083".
+  nepali_utils: ^3.0.8
+
   # Formatting & charts
   intl: 0.20.2
   fl_chart: ^1.2.0
   awesome_snackbar_content: ^0.1.8
   http: ^1.6.0
   cloud_functions: ^6.4.0
+  csv: ^8.0.0
+  path_provider: ^2.1.6
+  share_plus: ^13.3.0
 
 dev_dependencies:
   flutter_test:

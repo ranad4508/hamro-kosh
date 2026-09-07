@@ -28,7 +28,7 @@ class FundScreen extends StatelessWidget {
             IconButton(
               tooltip: 'Full ledger',
               icon: const Icon(Icons.receipt_long_outlined),
-              onPressed: () => context.push(RoutePaths.transactions),
+              onPressed: () => context.push(RoutePaths.ledger),
             ),
           ],
           bottom: const TabBar(
@@ -86,7 +86,7 @@ class _FlowTab extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, _) => AppErrorState(message: '$error'),
       data: (all) {
-        final filtered = all.where((t) => t.type.isInflow == inflow).toList();
+        final filtered = all.where((t) => t.isInflow == inflow).toList();
         if (filtered.isEmpty) {
           return EmptyState(
             icon: inflow ? Icons.call_received : Icons.call_made,

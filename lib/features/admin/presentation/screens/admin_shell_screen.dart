@@ -25,16 +25,17 @@ const _destinations = [
     selectedIcon: Icons.account_balance,
   ),
   AdaptiveDestination(
-    label: 'Reports',
-    icon: Icons.bar_chart_outlined,
-    selectedIcon: Icons.bar_chart,
+    label: 'More',
+    icon: Icons.more_horiz,
+    selectedIcon: Icons.more_horiz,
   ),
 ];
 
-/// SRS §53 — Admin app shell: Dashboard / Members / Loans / Fund / Reports.
-/// Contributions management lives inside the Fund tab; Notifications,
-/// Settings, and Audit are reached via [AdminMoreMenu] in each screen's
-/// app bar.
+/// Admin app shell: Dashboard / Members / Loans / Fund / More
+/// (`design_spec.md` §2's admin `.tb` tab list). "More" lands on Fund
+/// rules & the audit trail (screen `3d`); Reports, Notifications,
+/// Campaigns, Disputes, and Privacy settings are reached via
+/// [AdminMoreMenu] in each screen's app bar.
 class AdminShellScreen extends StatelessWidget {
   const AdminShellScreen({super.key, required this.navigationShell});
 

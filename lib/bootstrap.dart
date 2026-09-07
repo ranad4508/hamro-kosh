@@ -1,7 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -21,6 +23,20 @@ Future<void> bootstrap() async {
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
+    );
+    // Silences "No AppCheckProvider installed" and lets Firebase attest
+    // that requests come from this real app build, not a script hitting
+    // the API directly. Debug builds use the debug provider — the first
+    // run prints a token to the device log that must be registered once in
+    // Firebase Console → App Check → Apps → "Manage debug tokens" — release
+    // builds use Play Integrity (Android) / App Attest (iOS), which need no
+    // manual registration. This is a no-op if App Check enforcement isn't
+    // turned on for the project yet, so it's safe to enable ahead of that.
+    await FirebaseAppCheck.instance.activate(
+      providerAndroid: kDebugMode
+          ? AndroidDebugProvider()
+          : AndroidPlayIntegrityProvider(),
+      providerApple: kDebugMode ? AppleDebugProvider() : AppleAppAttestProvider(),
     );
     configureFirestoreOfflinePersistence();
     await NotificationService(

@@ -3,10 +3,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/route_paths.dart';
 
-/// SRS §53 — Notifications / Settings / Audit sit off this overflow menu
-/// rather than on the admin bottom bar, which is already at the
-/// recommended 5-destination maximum (Dashboard, Members, Loans, Fund,
-/// Reports).
+/// Reports / Notifications / Campaigns / Disputes / Privacy settings sit
+/// off this overflow menu rather than on the admin bottom bar, which is
+/// already at the design's 5-destination maximum (Dashboard, Members,
+/// Loans, Fund, More). "More" itself lands on Fund rules & audit
+/// (`AdminSettingsScreen`), so that entry isn't repeated here.
 class AdminMoreMenu extends StatelessWidget {
   const AdminMoreMenu({super.key});
 
@@ -16,6 +17,13 @@ class AdminMoreMenu extends StatelessWidget {
       icon: const Icon(Icons.more_vert),
       onSelected: (path) => context.push(path),
       itemBuilder: (context) => const [
+        PopupMenuItem(
+          value: RoutePaths.adminReports,
+          child: ListTile(
+            leading: Icon(Icons.bar_chart_outlined),
+            title: Text('Reports'),
+          ),
+        ),
         PopupMenuItem(
           value: RoutePaths.adminNotifications,
           child: ListTile(
@@ -35,13 +43,6 @@ class AdminMoreMenu extends StatelessWidget {
           child: ListTile(
             leading: Icon(Icons.report_problem_outlined),
             title: Text('Disputes'),
-          ),
-        ),
-        PopupMenuItem(
-          value: RoutePaths.adminSettings,
-          child: ListTile(
-            leading: Icon(Icons.settings_outlined),
-            title: Text('System settings'),
           ),
         ),
         PopupMenuItem(

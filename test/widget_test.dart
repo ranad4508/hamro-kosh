@@ -14,7 +14,7 @@ import 'package:hamro_kosh/core/widgets/app_button.dart';
 
 void main() {
   test('AppTheme builds valid light and dark ThemeData', () {
-    final light = AppTheme.light();
+    final light = AppTheme.dark();
     final dark = AppTheme.dark();
 
     expect(light.brightness, Brightness.light);

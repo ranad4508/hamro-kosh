@@ -21,6 +21,7 @@ class DisputesScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('My reports')),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'disputes_fab',
         onPressed: () => context.push(RoutePaths.reportIssue),
         icon: const Icon(Icons.add),
         label: const Text('Report an issue'),

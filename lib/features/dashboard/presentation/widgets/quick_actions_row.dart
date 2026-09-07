@@ -13,21 +13,21 @@ class _QuickAction {
 
 const _actions = [
   _QuickAction(
-    'Contributions',
-    Icons.volunteer_activism_outlined,
-    RoutePaths.contributions,
-  ),
-  _QuickAction(
     'Request loan',
     Icons.request_quote_outlined,
     RoutePaths.loanRequest,
   ),
   _QuickAction('Reports', Icons.bar_chart_outlined, RoutePaths.reports),
-  _QuickAction('Ledger', Icons.receipt_long_outlined, RoutePaths.transactions),
+  _QuickAction(
+    'Notifications',
+    Icons.notifications_outlined,
+    RoutePaths.notifications,
+  ),
 ];
 
-/// Dashboard shortcut row surfacing the sections that don't have their own
-/// bottom-nav tab (Contributions, Reports, full ledger) per SRS §52.
+/// Dashboard shortcut row surfacing sections that don't have their own
+/// bottom-nav tab (per SRS §52) — Give and Ledger moved to tabs of their
+/// own (`design_spec.md` §2), so this row no longer duplicates them.
 class QuickActionsRow extends StatelessWidget {
   const QuickActionsRow({super.key});
 

@@ -25,6 +25,7 @@ class AdminCampaignsScreen extends ConsumerWidget {
         actions: const [AdminMoreMenu()],
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'admin_campaigns_fab',
         onPressed: () => context.push(RoutePaths.adminCreateCampaign),
         icon: const Icon(Icons.add),
         label: const Text('New campaign'),

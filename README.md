@@ -159,11 +159,14 @@ This deploys: `createUserAccount` (provision a member/admin account),
 `verifyContribution` (verify/reject a contribution), `approveLoan`
 (approve/reject a loan), `verifyRepayment` (splits a repayment into
 principal/interest/penalty and updates the loan), `recordExpense` (admin
-records a community expense), `notifyOnTransaction` (a Firestore trigger
-that emails every active member on a new ledger entry), and
-`dailyLoanSweep` (a **scheduled** function — repayment reminders and the
-auto-transition to `overdue`; Cloud Scheduler's free tier covers the one
-job this uses, well within the 3 free jobs per project).
+records a community expense), `correctTransaction` (SRS §44 — appends a
+linked, signed correction entry for a mistaken amount without ever editing
+or deleting the original), `notifyOnTransaction` (a Firestore trigger that
+emails every active member on a new ledger entry, filtered per recipient by
+their email preferences), and `dailyLoanSweep` (a **scheduled** function —
+repayment reminders and the auto-transition to `overdue`; Cloud Scheduler's
+free tier covers the one job this uses, well within the 3 free jobs per
+project).
 
 ### RBAC & the super admin
 

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/models/loan_status.dart';
+import '../../../../core/models/transaction_type.dart';
 import '../../../../core/router/route_paths.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/services/cloud_functions_service.dart';
@@ -31,7 +32,14 @@ class AdminFundScreen extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Manage Fund'),
-          actions: const [AdminMoreMenu()],
+          actions: [
+            IconButton(
+              tooltip: 'Record a payment',
+              icon: const Icon(Icons.point_of_sale_outlined),
+              onPressed: () => context.push(RoutePaths.adminRecordContribution),
+            ),
+            const AdminMoreMenu(),
+          ],
           bottom: const TabBar(
             tabs: [
               Tab(text: 'Overview'),
@@ -44,6 +52,7 @@ class AdminFundScreen extends StatelessWidget {
           children: [_OverviewTab(), _VerifyContributionsTab(), _LedgerTab()],
         ),
         floatingActionButton: FloatingActionButton.extended(
+          heroTag: 'admin_fund_fab',
           onPressed: () => context.push(RoutePaths.adminRecordExpense),
           icon: const Icon(Icons.remove_circle_outline),
           label: const Text('Record expense'),
@@ -227,8 +236,20 @@ class _LedgerTab extends ConsumerWidget {
           padding: const EdgeInsets.all(AppSpacing.lg),
           itemCount: items.length,
           separatorBuilder: (_, _) => const Divider(height: 1),
-          itemBuilder: (context, index) =>
-              TransactionTile(transaction: items[index]),
+          itemBuilder: (context, index) {
+            final item = items[index];
+            return TransactionTile(
+              transaction: item,
+              // A correction can't itself be corrected — see
+              // correctTransaction in functions/index.js.
+              onCorrect: item.type == TransactionType.adjustment
+                  ? null
+                  : () => context.push(
+                      RoutePaths.adminCorrectTransaction,
+                      extra: item,
+                    ),
+            );
+          },
         );
       },
     );

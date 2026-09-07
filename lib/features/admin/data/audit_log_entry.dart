@@ -9,6 +9,7 @@ class AuditLogEntry {
     required this.timestamp,
     this.previousValue,
     this.newValue,
+    this.reason,
   });
 
   final String id;
@@ -18,6 +19,11 @@ class AuditLogEntry {
   final String? previousValue;
   final String? newValue;
 
+  /// Required by the admin UI whenever changing a rule affects members'
+  /// money (`design_spec.md` §3d: "A reason is required, and the old value
+  /// stays in the audit trail").
+  final String? reason;
+
   factory AuditLogEntry.fromFirestore(String id, Map<String, dynamic> data) {
     return AuditLogEntry(
       id: id,
@@ -26,6 +32,7 @@ class AuditLogEntry {
       timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
       previousValue: data['previousValue'] as String?,
       newValue: data['newValue'] as String?,
+      reason: data['reason'] as String?,
     );
   }
 }

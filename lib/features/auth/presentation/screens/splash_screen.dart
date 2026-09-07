@@ -59,8 +59,6 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Scaffold(
       body: Center(
         child: Column(
@@ -84,7 +82,7 @@ class _SplashScreenState extends State<SplashScreen>
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w800,
                       letterSpacing: 4,
-                      color: isDark ? Colors.white : const Color(0xFF2B2A3D),
+                      color: Colors.white,
                     ),
                   ),
                 ),

@@ -117,7 +117,7 @@ class _RecordRepaymentScreenState extends ConsumerState<RecordRepaymentScreen> {
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
-              prefixIcon: Icons.currency_rupee,
+              prefixText: 'Rs. ',
               validator: (v) {
                 final base = Validators.positiveAmount(v);
                 if (base != null) return base;

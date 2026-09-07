@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../../core/models/user_role.dart';
+
 /// A member as shown in the community directory (SRS §31-§32). Deliberately
 /// narrower than [AppUser] — only fields cleared for community-wide display
 /// are included here. Financial figures (total contributed, active loan
@@ -12,10 +14,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 /// `phone` is included here (unlike email, which stays admin/self-only) so
 /// SRS §29's admin-configurable "show phone" privacy toggle has something
 /// real to gate — see `PrivacySettings.showPhoneNumber` and where the UI
-/// actually displays it (Member Detail). As with the directory's own
-/// isApproved filter, this is a UI-layer gate, not a Firestore rule: fine
-/// for this app's small-trusted-community threat model, not a hard
-/// boundary against a technically determined member.
+/// actually displays it (Member Detail). This is a UI-layer gate, not a
+/// Firestore rule: fine for this app's small-trusted-community threat
+/// model, not a hard boundary against a technically determined member.
 class MemberDirectoryEntry {
   const MemberDirectoryEntry({
     required this.uid,
@@ -24,7 +25,7 @@ class MemberDirectoryEntry {
     this.photoUrl,
     this.phone,
     this.isActive = true,
-    this.isApproved = true,
+    this.role = UserRole.member,
   });
 
   final String uid;
@@ -33,7 +34,12 @@ class MemberDirectoryEntry {
   final String? photoUrl;
   final String? phone;
   final bool isActive;
-  final bool isApproved;
+
+  /// SRS.md §58 RBAC hierarchy — lets Manage Members scope who can
+  /// enable/disable whom: an admin manages `member` accounts only, and only
+  /// a super admin manages `admin` accounts (see `AdminMembersScreen` and
+  /// the matching `firestore.rules` restriction on `users/{userId}.update`).
+  final UserRole role;
 
   factory MemberDirectoryEntry.fromFirestore(
     String uid,
@@ -47,7 +53,7 @@ class MemberDirectoryEntry {
       photoUrl: data['photoUrl'] as String?,
       phone: data['phone'] as String?,
       isActive: data['isActive'] as bool? ?? true,
-      isApproved: data['isApproved'] as bool? ?? true,
+      role: UserRole.fromName(data['role'] as String?),
     );
   }
 }

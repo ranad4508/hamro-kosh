@@ -52,7 +52,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       await ref
           .read(authRepositoryProvider)
           .updateProfile(
-            uid: uid,
+            uid,
             fullName: _fullName.text.trim(),
             phone: _phone.text.trim(),
             photoUrl: _photoUrl,

@@ -3,13 +3,16 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/admin/presentation/screens/admin_audit_screen.dart';
 import '../../features/admin/presentation/screens/admin_campaigns_screen.dart';
+import '../../features/admin/presentation/screens/admin_correct_transaction_screen.dart';
 import '../../features/admin/presentation/screens/admin_create_campaign_screen.dart';
 import '../../features/admin/presentation/screens/admin_create_user_screen.dart';
 import '../../features/admin/presentation/screens/admin_dashboard_screen.dart';
+import '../../features/admin/presentation/screens/admin_fund_rules_screen.dart';
 import '../../features/admin/presentation/screens/admin_fund_screen.dart';
 import '../../features/admin/presentation/screens/admin_loans_screen.dart';
 import '../../features/admin/presentation/screens/admin_members_screen.dart';
 import '../../features/admin/presentation/screens/admin_notifications_screen.dart';
+import '../../features/admin/presentation/screens/admin_record_contribution_screen.dart';
 import '../../features/admin/presentation/screens/admin_record_expense_screen.dart';
 import '../../features/admin/presentation/screens/admin_reports_screen.dart';
 import '../../features/admin/presentation/screens/admin_shell_screen.dart';
@@ -19,17 +22,20 @@ import '../../features/admin/presentation/screens/admin_privacy_settings_screen.
 import '../../features/disputes/presentation/screens/disputes_screen.dart';
 import '../../features/disputes/presentation/screens/report_issue_screen.dart';
 import '../../features/auth/presentation/screens/account_pending_screen.dart';
+import '../../features/auth/presentation/screens/forced_password_change_screen.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
 import '../../features/auth/providers/auth_providers.dart';
+import 'auth_redirect.dart';
 import '../../features/contributions/data/campaign.dart';
 import '../../features/contributions/presentation/screens/add_contribution_screen.dart';
 import '../../features/contributions/presentation/screens/campaigns_screen.dart';
 import '../../features/contributions/presentation/screens/contributions_screen.dart';
 import '../../features/dashboard/presentation/screens/dashboard_screen.dart';
 import '../../features/dashboard/presentation/screens/member_shell_screen.dart';
+import '../../features/fund/data/fund_transaction.dart';
 import '../../features/fund/presentation/screens/fund_screen.dart';
 import '../../features/fund/presentation/screens/transactions_screen.dart';
 import '../../features/loans/presentation/screens/loan_detail_screen.dart';
@@ -56,71 +62,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: RoutePaths.splash,
     refreshListenable: GoRouterRefreshNotifier(ref),
-    redirect: (context, state) {
-      final location = state.matchedLocation;
-      final isAuthRoute =
-          location == RoutePaths.login ||
-          location == RoutePaths.register ||
-          location == RoutePaths.forgotPassword;
-
-      final authState = ref.read(authStateProvider);
-
-      // Firebase Auth hasn't reported an initial state yet — hold on the
-      // splash screen rather than bouncing to /login prematurely. (This
-      // also covers the placeholder-Firebase case: an error here is
-      // treated as "resolved, logged out" below rather than hanging
-      // forever, so the scaffold stays explorable before real Firebase
-      // credentials are configured.)
-      if (authState.isLoading && !authState.hasError) {
-        return null;
-      }
-
-      final isLoggedIn = authState.value != null;
-
-      if (!isLoggedIn) {
-        return isAuthRoute ? null : RoutePaths.login;
-      }
-
-      // Logged in but the Firestore profile hasn't resolved yet — hold on
-      // the splash screen rather than guessing a role.
-      final profileState = ref.read(userProfileProvider);
-      if (profileState.isLoading && location == RoutePaths.splash) {
-        return null;
-      }
-
-      final profile = profileState.value;
-      final isAdmin = profile?.role.canAccessAdminShell ?? false;
-
-      // A signed-in Firebase Auth user isn't necessarily a usable app
-      // account yet: self-registration starts unapproved (SRS §3.4/§35),
-      // an admin can disable an account, and — an edge case, but a real
-      // one — an Auth user created directly in the Firebase console has no
-      // Firestore profile at all. Any of these previously fell through to
-      // the member shell, which then hit permission-denied on every read
-      // `isActiveMember()` gates in firestore.rules. Route them to a clear
-      // holding screen instead.
-      final isUsable =
-          profile != null &&
-          profile.isActive &&
-          (profile.isApproved || isAdmin);
-      if (!isUsable) {
-        return location == RoutePaths.accountPending
-            ? null
-            : RoutePaths.accountPending;
-      }
-
-      if (isAuthRoute ||
-          location == RoutePaths.splash ||
-          location == RoutePaths.accountPending) {
-        return isAdmin ? RoutePaths.adminDashboard : RoutePaths.home;
-      }
-
-      if (!isAdmin && location.startsWith('/admin')) {
-        return RoutePaths.home;
-      }
-
-      return null;
-    },
+    redirect: (context, state) => resolveAuthRedirect(
+      authState: ref.read(authStateProvider),
+      profileState: ref.read(userProfileProvider),
+      location: state.matchedLocation,
+    ),
     routes: [
       GoRoute(
         path: RoutePaths.splash,
@@ -129,6 +75,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RoutePaths.accountPending,
         builder: (context, state) => const AccountPendingScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.forcedPasswordChange,
+        builder: (context, state) => const ForcedPasswordChangeScreen(),
       ),
       GoRoute(
         path: RoutePaths.login,
@@ -172,8 +122,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const CampaignsScreen(),
       ),
       GoRoute(
-        path: RoutePaths.transactions,
-        builder: (context, state) => const TransactionsScreen(),
+        path: RoutePaths.fund,
+        builder: (context, state) => const FundScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.profile,
+        builder: (context, state) => const ProfileScreen(),
       ),
       GoRoute(
         path: RoutePaths.reports,
@@ -203,7 +157,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             RecordRepaymentScreen(loanId: state.pathParameters['loanId']!),
       ),
 
-      // Member shell — Home / Fund / Loans / Members / Profile (SRS §52).
+      // Member shell — Home / Ledger / Give / Loans / Members
+      // (`design_spec.md` §2). Fund and Profile are still real screens, just
+      // reached by push rather than a tab of their own (see the standalone
+      // routes above) — Fund's summary content now lives on Home (§1a) and
+      // Profile is reached via the avatar in each tab's header.
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
             MemberShellScreen(navigationShell: navigationShell),
@@ -219,8 +177,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: RoutePaths.fund,
-                builder: (context, state) => const FundScreen(),
+                path: RoutePaths.ledger,
+                builder: (context, state) => const TransactionsScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RoutePaths.give,
+                builder: (context, state) => const ContributionsScreen(),
               ),
             ],
           ),
@@ -240,18 +206,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: RoutePaths.profile,
-                builder: (context, state) => const ProfileScreen(),
-              ),
-            ],
-          ),
         ],
       ),
 
-      // Admin shell — Dashboard / Members / Loans / Fund / Reports (SRS §53).
+      // Admin shell — Dashboard / Members / Loans / Fund / More
+      // (`design_spec.md` §2's admin `.tb` tab list — "More" lands on Fund
+      // rules & audit, screen `3d`; Reports/Notifications/Campaigns/
+      // Disputes/Privacy move into `AdminMoreMenu`, reached from there).
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
             AdminShellScreen(navigationShell: navigationShell),
@@ -291,20 +252,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: RoutePaths.adminReports,
-                builder: (context, state) => const AdminReportsScreen(),
+                path: RoutePaths.adminSettings,
+                builder: (context, state) => const AdminSettingsScreen(),
               ),
             ],
           ),
         ],
       ),
       GoRoute(
-        path: RoutePaths.adminNotifications,
-        builder: (context, state) => const AdminNotificationsScreen(),
+        path: RoutePaths.adminFundRules,
+        builder: (context, state) => const AdminFundRulesScreen(),
       ),
       GoRoute(
-        path: RoutePaths.adminSettings,
-        builder: (context, state) => const AdminSettingsScreen(),
+        path: RoutePaths.adminReports,
+        builder: (context, state) => const AdminReportsScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.adminNotifications,
+        builder: (context, state) => const AdminNotificationsScreen(),
       ),
       GoRoute(
         path: RoutePaths.adminAudit,
@@ -317,6 +282,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RoutePaths.adminRecordExpense,
         builder: (context, state) => const AdminRecordExpenseScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.adminRecordContribution,
+        builder: (context, state) => const AdminRecordContributionScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.adminCorrectTransaction,
+        builder: (context, state) => AdminCorrectTransactionScreen(
+          original: state.extra as FundTransaction,
+        ),
       ),
       GoRoute(
         path: RoutePaths.adminCampaigns,
@@ -341,13 +316,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RoutePaths.reportIssue,
         builder: (context, state) => const ReportIssueScreen(),
-      ),
-      // ContributionsScreen (monthly/special tabs) is reachable from the
-      // Fund tab's quick actions rather than the bottom nav; registered as
-      // a normal push route so it keeps the Fund tab's back stack.
-      GoRoute(
-        path: RoutePaths.contributions,
-        builder: (context, state) => const ContributionsScreen(),
       ),
     ],
   );

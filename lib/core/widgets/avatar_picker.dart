@@ -33,32 +33,43 @@ class _AvatarPickerState extends State<AvatarPicker> {
   final _picker = ImagePicker();
   final _cloudinary = CloudinaryService();
   bool _uploading = false;
+  // Set the instant the picker is invoked, not after it resolves — a
+  // second tap during the gallery UI's open animation would otherwise
+  // call pickImage() again while the first call is still active, which
+  // throws PlatformException(already_active) instead of just no-op'ing.
+  bool _picking = false;
 
   Future<void> _pickAndUpload() async {
-    final picked = await _picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1024,
-      imageQuality: 85,
-    );
-    if (picked == null) return;
-
-    setState(() => _uploading = true);
+    if (_picking) return;
+    _picking = true;
     try {
-      final url = await _cloudinary.uploadImage(
-        File(picked.path),
-        folder: widget.folder,
+      final picked = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        imageQuality: 85,
       );
-      widget.onUploaded(url);
-    } catch (_) {
-      if (mounted) {
-        AppSnackbar.showError(
-          context,
-          title: 'Upload failed',
-          message: 'Could not upload the photo. Please try again.',
+      if (picked == null) return;
+
+      setState(() => _uploading = true);
+      try {
+        final url = await _cloudinary.uploadImage(
+          File(picked.path),
+          folder: widget.folder,
         );
+        widget.onUploaded(url);
+      } catch (_) {
+        if (mounted) {
+          AppSnackbar.showError(
+            context,
+            title: 'Upload failed',
+            message: 'Could not upload the photo. Please try again.',
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _uploading = false);
       }
     } finally {
-      if (mounted) setState(() => _uploading = false);
+      _picking = false;
     }
   }
 

@@ -7,10 +7,13 @@ class MembersRepository {
 
   final FirebaseFirestore _firestore;
 
+  /// Every active member (there's no approval queue to filter on — only
+  /// `isActive`, since registration and admin-provisioned accounts are both
+  /// immediately usable).
   Stream<List<MemberDirectoryEntry>> watchMembers() {
     return _firestore
         .collection('users')
-        .where('isApproved', isEqualTo: true)
+        .where('isActive', isEqualTo: true)
         .orderBy('fullName')
         .snapshots()
         .map((snapshot) => _excludingSuperAdmin(snapshot.docs));
@@ -28,10 +31,9 @@ class MembersRepository {
         );
   }
 
-  /// Admin-only: every member regardless of approval/active status
-  /// (SRS §35 — member management, approve/reject, enable/disable). The
-  /// super admin is never included — SRS.md §58: "not shown to other
-  /// users," admins included.
+  /// Admin-only: every member regardless of active status (SRS §35 —
+  /// member management, enable/disable). The super admin is never included
+  /// — SRS.md §58: "not shown to other users," admins included.
   Stream<List<MemberDirectoryEntry>> watchAllMembers() {
     return _firestore
         .collection('users')
@@ -47,12 +49,6 @@ class MembersRepository {
         .where((doc) => doc.data()['role'] != 'superAdmin')
         .map((doc) => MemberDirectoryEntry.fromFirestore(doc.id, doc.data()))
         .toList();
-  }
-
-  Future<void> setApproved(String uid, bool approved) {
-    return _firestore.collection('users').doc(uid).update({
-      'isApproved': approved,
-    });
   }
 
   Future<void> setActive(String uid, bool active) {

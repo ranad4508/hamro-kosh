@@ -2,21 +2,40 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../core/models/user_role.dart';
 
-/// A member's profile document, stored at `users/{uid}` in Firestore.
-/// Mirrors SRS §4 (Member Profile) fields that matter for the app shell;
-/// the richer financial-profile fields (§32) are computed server-side from
-/// the ledger rather than stored redundantly here.
+/// Where a member's account currently stands — derived from [AppUser]
+/// rather than re-checked inline by every screen that needs it (the old
+/// `AccountPendingScreen` derived this exact three-way split directly in
+/// its `build()` method, a business-logic-in-a-widget smell this rewrite
+/// avoids repeating).
+///
+/// There is no approval step and no "treasurer" role — only member/admin/
+/// superAdmin exist, and anyone who registers (or is created directly by an
+/// admin/super admin) is immediately active.
+enum AccountStatus {
+  /// Signed in, but no Firestore profile exists at all — e.g. an Auth user
+  /// created directly in the Firebase console, or an unrecoverable
+  /// registration failure. Treated the same as "not usable" by the router.
+  noProfile,
+
+  /// An admin disabled this account (SRS §35).
+  disabled,
+
+  /// Everything checks out — usable app account.
+  active,
+}
+
+/// A member's Firestore profile (`users/{uid}`) — SRS §3, §4, and the
+/// three-tier RBAC addition in SRS.md §58.
 class AppUser {
   const AppUser({
     required this.uid,
     required this.fullName,
     required this.email,
+    required this.role,
+    required this.isActive,
     this.phone,
     this.photoUrl,
-    required this.role,
-    required this.memberSince,
-    this.isApproved = false,
-    this.isActive = true,
+    this.memberSince,
     this.mustChangePassword = false,
   });
 
@@ -26,14 +45,45 @@ class AppUser {
   final String? phone;
   final String? photoUrl;
   final UserRole role;
-  final DateTime memberSince;
-  final bool isApproved;
+  final DateTime? memberSince;
+
+  /// SRS §35 — an admin-disabled account stays on record (never deleted)
+  /// but can no longer sign in to a usable shell.
   final bool isActive;
 
-  /// True for accounts an admin created directly (SRS.md §58 RBAC flow) —
-  /// the member signed in with a temporary, emailed password and should be
-  /// prompted to set their own before continuing.
+  /// Set on admin-provisioned accounts (`createUserAccount`); forces the
+  /// `ForcedPasswordChangeScreen` before the member reaches either shell.
   final bool mustChangePassword;
+
+  AccountStatus get status =>
+      isActive ? AccountStatus.active : AccountStatus.disabled;
+
+  String get initials {
+    final parts = fullName.trim().split(
+      RegExp(r'\s+'),
+    )..removeWhere((p) => p.isEmpty);
+    if (parts.isEmpty) return '?';
+    return parts.take(2).map((p) => p[0].toUpperCase()).join();
+  }
+
+  AppUser copyWith({
+    String? fullName,
+    String? phone,
+    String? photoUrl,
+    bool? mustChangePassword,
+  }) {
+    return AppUser(
+      uid: uid,
+      fullName: fullName ?? this.fullName,
+      email: email,
+      phone: phone ?? this.phone,
+      photoUrl: photoUrl ?? this.photoUrl,
+      role: role,
+      isActive: isActive,
+      memberSince: memberSince,
+      mustChangePassword: mustChangePassword ?? this.mustChangePassword,
+    );
+  }
 
   factory AppUser.fromFirestore(String uid, Map<String, dynamic> data) {
     return AppUser(
@@ -43,23 +93,16 @@ class AppUser {
       phone: data['phone'] as String?,
       photoUrl: data['photoUrl'] as String?,
       role: UserRole.fromName(data['role'] as String?),
-      memberSince:
-          (data['memberSince'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      isApproved: data['isApproved'] as bool? ?? false,
       isActive: data['isActive'] as bool? ?? true,
+      memberSince: (data['memberSince'] as Timestamp?)?.toDate(),
       mustChangePassword: data['mustChangePassword'] as bool? ?? false,
     );
   }
 
   Map<String, dynamic> toFirestore() => {
     'fullName': fullName,
-    'email': email,
-    'phone': phone,
-    'photoUrl': photoUrl,
-    'role': role.name,
-    'memberSince': Timestamp.fromDate(memberSince),
-    'isApproved': isApproved,
-    'isActive': isActive,
+    if (phone != null) 'phone': phone,
+    if (photoUrl != null) 'photoUrl': photoUrl,
     'mustChangePassword': mustChangePassword,
   };
 }

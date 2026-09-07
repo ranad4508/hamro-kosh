@@ -15,6 +15,7 @@ class FundTransaction {
     this.proofUrl,
     this.category,
     this.recipient,
+    this.direction,
   });
 
   final String id;
@@ -33,6 +34,18 @@ class FundTransaction {
   /// Who the money was paid to — only populated for `fundExpense` entries.
   final String? recipient;
 
+  /// SRS §44 — 'credit' or 'debit', only populated for `adjustment` entries
+  /// (a correction can go either way, unlike every other transaction type,
+  /// which has a fixed in/out direction).
+  final String? direction;
+
+  /// Whether this entry increases (true) or decreases (false) the available
+  /// fund balance. Every type except `adjustment` has a fixed direction
+  /// ([TransactionType.isInflow]); a correction's direction depends on the
+  /// specific mistake it's fixing, so it's read from [direction] instead.
+  bool get isInflow =>
+      type == TransactionType.adjustment ? direction != 'debit' : type.isInflow;
+
   factory FundTransaction.fromFirestore(String id, Map<String, dynamic> data) {
     return FundTransaction(
       id: id,
@@ -48,6 +61,7 @@ class FundTransaction {
       proofUrl: data['proofUrl'] as String?,
       category: data['category'] as String?,
       recipient: data['recipient'] as String?,
+      direction: data['direction'] as String?,
     );
   }
 }

@@ -19,6 +19,7 @@ class LoansScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Loans')),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'loans_fab',
         onPressed: () => context.push(RoutePaths.loanRequest),
         icon: const Icon(Icons.add),
         label: const Text('Request loan'),

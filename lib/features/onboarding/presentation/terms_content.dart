@@ -1,85 +1,122 @@
-/// Placeholder Terms & Conditions copy structured per SRS §48. Replace with
-/// the community's actual reviewed/legal terms before launch — this exists
-/// so the acceptance flow (SRS §3.4, §48) and the read-only viewer
-/// (Profile → Terms & Conditions) have real, section-by-section content to
-/// render rather than lorem ipsum.
-class TermsSection {
-  const TermsSection(this.title, this.body);
-  final String title;
-  final String body;
+/// Hamro Kosh's actual, literal bylaws — 16 numbered rules, grouped exactly
+/// as the reference design (`design_spec.md` §3, screen `4b`) groups them,
+/// supplied verbatim by the fund's own committee (not placeholder/lorem
+/// copy). These same numbers drive the loan-eligibility logic in
+/// `lib/core/models/loan_category.dart` and the penalty calculation in
+/// `functions/index.js` — this file is the human-readable statement of the
+/// same rules those enforce in code.
+class TermsRule {
+  const TermsRule(this.number, this.textEn, this.textNe);
+  final int number;
+  final String textEn;
+  final String textNe;
 }
 
-const List<TermsSection> termsSections = [
-  TermsSection(
-    'Membership',
-    'Membership is granted at admin discretion after registration review. '
-        'Members must keep their contact details accurate and notify an '
-        'admin of any change in circumstances affecting participation.',
-  ),
-  TermsSection(
-    'Contributions',
-    'Members agree to make the configured monthly contribution on time. '
-        'Special/occasion contributions are voluntary unless marked '
-        'mandatory for a specific campaign.',
-  ),
-  TermsSection(
-    'Fund usage',
-    'The community fund is used only for approved purposes: member loans, '
-        'community occasions, emergency support, and administrative costs '
-        'explicitly recorded in the transparency ledger.',
-  ),
-  TermsSection(
-    'Borrowing',
-    'Loan eligibility, maximum amount, and required documentation are set '
-        'by the admin-configured fund rules and may change over time.',
-  ),
-  TermsSection(
-    'Interest',
-    'Interest is calculated using the method (flat, reducing balance, '
-        'fixed) and rate configured for each loan at approval time, and is '
-        'disclosed to the borrower before acceptance.',
-  ),
-  TermsSection(
-    'Repayment',
-    'Repayments follow the agreed schedule and frequency. Partial payments '
-        'are applied to interest before principal unless otherwise stated.',
-  ),
-  TermsSection(
-    'Late payments & penalties',
-    'A grace period and late-payment penalty may apply as configured by '
-        'the admin; both are shown on the loan terms before disbursement.',
-  ),
-  TermsSection(
-    'Loan default',
-    'A loan marked defaulted may result in restricted future borrowing '
-        'eligibility and escalation to the community\'s dispute process.',
-  ),
-  TermsSection(
-    'Dispute handling',
-    'Members may raise a dispute for any transaction, contribution, or '
-        'loan balance they believe is incorrect; admins investigate and '
-        'respond with a resolution or explanation.',
-  ),
-  TermsSection(
-    'Admin responsibilities',
-    'Admins are responsible for accurate record-keeping, timely approval '
-        'decisions, and maintaining the audit trail for every financial '
-        'action they take.',
-  ),
-  TermsSection(
-    'Member responsibilities',
-    'Members are responsible for reviewing their own contribution and loan '
-        'history and reporting discrepancies promptly.',
-  ),
-  TermsSection(
-    'Financial transparency',
-    'Fund totals, transaction history, and loan status are visible to all '
-        'members according to the configured privacy settings, in line '
-        'with this app\'s transparency-first design.',
-  ),
-  TermsSection(
-    'Account termination',
-    'An account may be deactivated by an admin; historical financial '
-        'records are preserved regardless of account status.',
-  ),
+class TermsGroup {
+  const TermsGroup(this.titleEn, this.titleNe, this.rules);
+  final String titleEn;
+  final String titleNe;
+  final List<TermsRule> rules;
+}
+
+const List<TermsGroup> termsGroups = [
+  TermsGroup('Depositing', 'जम्मा गर्ने', [
+    TermsRule(1, 'The fund will be deposited monthly.', 'कोषमा रकम मासिक रूपमा जम्मा गरिनेछ।'),
+    TermsRule(
+      2,
+      'Minimum monthly amount should be NPR 250.',
+      'न्यूनतम मासिक रकम रु. २५० हुनुपर्छ।',
+    ),
+    TermsRule(
+      3,
+      'Amount should be deposited monthly or quarterly.',
+      'रकम मासिक वा त्रैमासिक रूपमा जम्मा गर्न सकिन्छ।',
+    ),
+    TermsRule(
+      7,
+      'Any deposit on a special occasion (birthdays, anniversaries, etc.) '
+          'is appreciated.',
+      'जन्मदिन, वार्षिकोत्सव जस्ता विशेष अवसरमा गरिने थप योगदानलाई प्रोत्साहन गरिन्छ।',
+    ),
+  ]),
+  TermsGroup('Using the fund', 'कोषको प्रयोग', [
+    TermsRule(
+      4,
+      'Fund health should be reviewed quarterly.',
+      'कोषको अवस्था त्रैमासिक रूपमा समीक्षा गरिनेछ।',
+    ),
+    TermsRule(
+      5,
+      "The deposited amount should be utilized based on the members' "
+          'alignment.',
+      'जम्मा भएको रकम सदस्यहरूको सहमतिका आधारमा प्रयोग गरिनेछ।',
+    ),
+    TermsRule(6, 'This will be a non-profit fund.', 'यो नाफारहित कोष हो।'),
+  ]),
+  TermsGroup('Borrowing', 'ऋण लिने', [
+    TermsRule(
+      8,
+      'Fund members can take a loan from the fund.',
+      'कोषका सदस्यहरूले कोषबाट ऋण लिन सक्नेछन्।',
+    ),
+    TermsRule(
+      9,
+      'A maximum of 2 members can hold a loan at a time; no loan will be '
+          'disbursed while 2 loans are already pending.',
+      'एकैपटक बढीमा २ जना सदस्यले मात्र ऋण लिन सक्नेछन्; २ वटा ऋण बाँकी रहेसम्म नयाँ ऋण दिइने छैन।',
+    ),
+    TermsRule(
+      10,
+      'A loan can be taken under different categories.',
+      'ऋण विभिन्न प्रकार (श्रेणी) मा लिन सकिन्छ।',
+    ),
+    TermsRule(
+      11,
+      'Personal category — a member can borrow up to 30% of the amount '
+          'remaining in the fund. The principal and interest should be '
+          'deposited within the quarter, starting from the date of loan '
+          'disbursement.',
+      'व्यक्तिगत श्रेणी: कोषमा बाँकी रहेको रकमको ३०% सम्म ऋण लिन सकिन्छ। साँवा र ब्याज ऋण दिएको '
+          'मितिदेखि एक त्रैमासभित्र तिर्नुपर्छ।',
+    ),
+    TermsRule(
+      12,
+      'Personal category interest rate is 1% monthly, 12% per annum, of '
+          'the principal amount.',
+      'व्यक्तिगत श्रेणीको ब्याजदर साँवा रकमको मासिक १%, वार्षिक १२% हुनेछ।',
+    ),
+    TermsRule(
+      13,
+      'Emergency category — a member can borrow up to 80% of the amount '
+          'remaining in the fund. This category covers medical or '
+          'accidental emergencies only. The amount should be deposited '
+          'within 1 to 2 quarters, starting from the date of loan '
+          'disbursement.',
+      'आकस्मिक श्रेणी: कोषमा बाँकी रहेको रकमको ८०% सम्म ऋण लिन सकिन्छ, स्वास्थ्य वा दुर्घटना '
+          'आकस्मिकताका लागि मात्र। रकम ऋण दिएको मितिदेखि १ देखि २ त्रैमासभित्र तिर्नुपर्छ।',
+    ),
+    TermsRule(
+      14,
+      'Emergency category interest rate is 0.5% monthly, 6% per annum.',
+      'आकस्मिक श्रेणीको ब्याजदर मासिक ०.५%, वार्षिक ६% हुनेछ।',
+    ),
+  ]),
+  TermsGroup('Interest and penalty', 'ब्याज र जरिवाना', [
+    TermsRule(
+      15,
+      'Interest should be deposited monthly or quarterly, based on '
+          'availability.',
+      'ब्याज उपलब्धताका आधारमा मासिक वा त्रैमासिक रूपमा बुझाउनुपर्छ।',
+    ),
+    TermsRule(
+      16,
+      'If interest is not deposited within the given time frame, an '
+          'additional 1.5% monthly penalty interest will be imposed on the '
+          'principal amount, from the start date of loan disbursement. If '
+          'the amount is still not deposited by the next payment date, '
+          'another 1.5% is added on top.',
+      'तोकिएको समयभित्र ब्याज नबुझाएमा, ऋण दिएको मितिदेखि साँवा रकममा थप मासिक १.५% जरिवाना '
+          'लाग्नेछ। अर्को भुक्तानी मितिसम्म पनि नतिरेमा थप १.५% थपिनेछ।',
+    ),
+  ]),
 ];

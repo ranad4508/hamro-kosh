@@ -41,47 +41,65 @@ service cloud.firestore {
         && selfData().isActive == true;
     }
 
-    // "Member" for transparency reads means vetted and not disabled — a
-    // brand-new registration awaiting approval (§3.4/§35) does not yet get
-    // community-wide financial visibility.
+    // Only the super admin manages other admin accounts (approve/enable/
+    // disable) — a plain admin's Manage Members reach stops at role
+    // 'member'. See the `users/{userId}.update` rule below and
+    // AdminMembersScreen, which scopes what a plain admin even sees to
+    // match.
+    function isSuperAdmin() {
+      return isSignedIn() && selfData().role == 'superAdmin' && selfData().isActive == true;
+    }
+
+    // "Member" for transparency reads means active — there is no approval
+    // step and no invite code (only member/admin/superAdmin roles exist; no
+    // separate "treasurer" or moderation queue). Anyone with the app can
+    // register via `registerMember` and is immediately active.
     function isActiveMember() {
-      return isSignedIn() && selfData().isApproved == true && selfData().isActive == true;
+      return isSignedIn() && selfData().isActive == true;
     }
 
     // ---- users/{uid} + subcollections -----------------------------------
 
     match /users/{userId} {
-      // Own profile always readable; an approved member's profile is
-      // readable by any other member for the community directory (§31).
-      // NOTE: `list` queries (e.g. the member directory) cannot be filtered
-      // by resource.data in rules, so any active member can list the full
-      // `users` collection, not just approved ones — the isApproved filter
-      // is enforced client-side only. Acceptable for a small trusted fund;
-      // move phone/email into a locked-down doc if that changes.
-      allow get: if isSelf(userId) || isAdmin() || resource.data.isApproved == true;
+      // Own profile always readable; any member's profile is readable by
+      // any other active member for the community directory (§31).
+      allow get: if isSelf(userId) || isAdmin() || isActiveMember();
       allow list: if isAdmin() || isActiveMember();
 
-      // Registration writes its own doc (§3). Must not self-grant admin,
-      // self-approve, or spoof its auth email.
+      // Registration writes its own doc (§3). Must not self-grant admin or
+      // spoof its auth email. In practice this path isn't used — self-
+      // registration goes through the `registerMember` Cloud Function
+      // (Admin SDK, bypasses these rules) so the invite-code check and the
+      // Auth-user-plus-profile write happen atomically — but this stays as
+      // a defensive floor in case a client ever writes here directly.
       allow create: if isSelf(userId)
         && request.resource.data.role == 'member'
-        && request.resource.data.isApproved == false
         && request.resource.data.isActive == true
         && request.resource.data.email == request.auth.token.email;
 
-      // Admins manage role/approval/active status (§35); members may only
-      // edit their own non-privileged profile fields. The admin path can
-      // never touch a superAdmin doc (protects it from demotion/disabling)
-      // and can never grant the superAdmin role to anyone.
-      allow update: if (isAdmin()
+      // Enable/disable hierarchy: a super admin manages any admin-or-member
+      // account; a plain admin's reach stops at `member` accounts — one
+      // admin can never disable or otherwise edit another admin's account,
+      // only a super admin can. Neither path can ever touch a superAdmin
+      // doc (protects it from demotion/disabling) or grant the superAdmin
+      // role to anyone. Members may only edit their own non-privileged
+      // profile fields.
+      allow update: if (isSuperAdmin()
             && resource.data.role != 'superAdmin'
             && request.resource.data.role != 'superAdmin')
+        || (isAdmin() && !isSuperAdmin()
+            && resource.data.role == 'member'
+            && request.resource.data.role == 'member')
         || (isSelf(userId)
             && request.resource.data.diff(resource.data).affectedKeys()
-                 .hasOnly(['fullName', 'phone', 'photoUrl', 'mustChangePassword', 'fcmToken']));
+                 .hasOnly(['fullName', 'phone', 'photoUrl', 'mustChangePassword', 'fcmToken', 'emailPreferences']));
 
       // A super admin's document is never deletable, by anyone (SRS.md §58).
-      allow delete: if isAdmin() && resource.data.role != 'superAdmin';
+      // Not reachable from the client today (SRS §35 — accounts are
+      // disabled, never deleted, to preserve historical financial records)
+      // but scoped to the same hierarchy as `update` in case that changes.
+      allow delete: if isSuperAdmin() && resource.data.role != 'superAdmin'
+        || (isAdmin() && !isSuperAdmin() && resource.data.role == 'member');
 
       // A member's own contribution history + the admin verification queue
       // (§7-§9, §38). Once submitted, only an admin can change its status
@@ -117,6 +135,20 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']);
         allow delete: if isSelf(userId) || isAdmin();
       }
+    }
+
+    // A plain `match /users/{userId}/contributions/{contributionId}` rule
+    // (above) only ever governs a `get` or a query already scoped to one
+    // known parent (`users/X/contributions`) — Firestore never consults it
+    // for a `collectionGroup('contributions')` query, no matter how
+    // permissive it is. `ContributionsRepository`/`CampaignsRepository` both
+    // run exactly that collection-group query (to find every member's
+    // pending contributions at once for the admin verification queue), so
+    // without this recursive-wildcard sibling rule that query is always
+    // denied with PERMISSION_DENIED — this was a real rules gap, not a
+    // per-account data issue.
+    match /{path=**}/contributions/{contributionId} {
+      allow read: if isAdmin() || isActiveMember();
     }
 
     // ---- fund-wide financial ledger --------------------------------------
@@ -215,6 +247,24 @@ service cloud.firestore {
     match /settings/privacy {
       allow read: if isActiveMember() || isAdmin();
       allow write: if isAdmin();
+    }
+
+    // The fund's own eSewa/bank account details (`design_spec.md` §6 — all
+    // contributions and repayments pay into this one fund-owned account,
+    // never a member's own account). Members need to read it on the Give
+    // screen; only an admin edits it, and it's a simple settings doc with
+    // no atomicity concerns, so a direct client write is fine here.
+    match /settings/fund_account {
+      allow read: if isActiveMember() || isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // Admin-authored transactional email templates (`design_spec.md` §4f).
+    // Read/written by the admin UI directly (no atomicity concerns — it's
+    // just template text); consumed server-side by Cloud Functions via the
+    // Admin SDK when actually sending an email.
+    match /email_templates/{templateId} {
+      allow read, write: if isAdmin();
     }
 
     // Admin-only audit trail (§40/§41) — not part of the member navigation.

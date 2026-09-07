@@ -43,6 +43,27 @@ class CloudFunctionsService {
     }
   }
 
+  /// SRS §3.1 — self-registration: no invite code, no approval step. Runs
+  /// the Auth-user creation and Firestore profile write as one guarded
+  /// server-side sequence (see `registerMember` in functions/index.js)
+  /// rather than the old client-side `createUserWithEmailAndPassword` +
+  /// separate Firestore write + forced sign-out dance, which could leave an
+  /// orphaned Auth user if the second write failed.
+  Future<String> registerMember({
+    required String fullName,
+    required String email,
+    required String phone,
+    required String password,
+  }) async {
+    final data = await _call('registerMember', {
+      'fullName': fullName,
+      'email': email,
+      'phone': phone,
+      'password': password,
+    });
+    return data['uid'] as String;
+  }
+
   /// SRS §35 / SRS.md §58 RBAC — provisions a member or admin account and
   /// emails the new user their temporary password.
   Future<String> createUser({
@@ -126,6 +147,45 @@ class CloudFunctionsService {
       'recipient': recipient,
       'paymentMethod': paymentMethod,
       'proofUrl': proofUrl,
+    });
+  }
+
+  /// `design_spec.md` §5e — records a contribution with no member-submitted
+  /// proof (cash handed directly to an admin, or an older cash-book entry).
+  /// Writes straight in as verified; the required [note] is what stands in
+  /// for a screenshot in the audit trail.
+  Future<String> recordContributionManually({
+    required String memberUid,
+    required double amount,
+    required int monthsCovered,
+    required DateTime date,
+    required String note,
+    required String category,
+  }) async {
+    final data = await _call('recordContributionManually', {
+      'memberUid': memberUid,
+      'amount': amount,
+      'monthsCovered': monthsCovered,
+      'date': date.toIso8601String(),
+      'note': note,
+      'category': category,
+    });
+    return data['id'] as String;
+  }
+
+  /// SRS §44 — corrects a mistaken transaction amount without editing or
+  /// deleting the original: appends a linked `adjustment` entry instead.
+  /// `amount` is signed — positive credits the fund balance back, negative
+  /// debits it further — and the fund total moves by exactly that delta.
+  Future<void> correctTransaction({
+    required String originalTransactionId,
+    required double amount,
+    required String reason,
+  }) {
+    return _call('correctTransaction', {
+      'originalTransactionId': originalTransactionId,
+      'amount': amount,
+      'reason': reason,
     });
   }
 }

@@ -81,6 +81,18 @@ const BROADCAST_TRANSACTION_TYPES = new Set([
   "loanRepayment",
 ]);
 
+// SRS §46 — maps a broadcast transaction's type to the member-configurable
+// email-preference field that gates it (lib/features/profile/data/
+// email_preferences.dart). A user with no `emailPreferences` field at all
+// (every account created before this feature) is treated as opted into
+// everything — `prefs[key] !== false` below, not `prefs[key] === true`.
+const EMAIL_PREFERENCE_KEY_BY_TRANSACTION_TYPE = {
+  monthlyContribution: "contributionConfirmations",
+  specialContribution: "contributionConfirmations",
+  loanDisbursement: "loanUpdates",
+  loanRepayment: "loanUpdates",
+};
+
 /**
  * Generates a random, human-typeable temporary password (avoids visually
  * ambiguous characters like 0/O/1/l) — the user is expected to change it
@@ -144,13 +156,40 @@ function buildEmailShell({ preheader, greeting, preContent, mainContentHtml, pos
  * `performedBy` is a uid rather than an email so this never has to be
  * corrected if someone changes their email later.
  */
-async function writeAuditLog({ action, performedBy, newValue }) {
+async function writeAuditLog({ action, performedBy, newValue, previousValue, reason }) {
   await getFirestore().collection("audit_log").add({
     action,
     performedBy,
     newValue: newValue ?? null,
+    previousValue: previousValue ?? null,
+    reason: reason ?? null,
     timestamp: FieldValue.serverTimestamp(),
   });
+}
+
+/**
+ * Wraps `getAuth().createUser()` so a duplicate email or other invalid
+ * input maps to a specific `HttpsError` instead of the raw
+ * `FirebaseAuthError` the Admin SDK throws. That raw error isn't an
+ * `HttpsError`, so a caller (`createUserAccount`, `registerMember`) that let
+ * it escape unconverted would surface the client with Firebase's generic
+ * "INTERNAL" message instead of an actionable one — e.g. this was silently
+ * happening whenever an admin tried to create an account for an email that
+ * already existed.
+ */
+async function createAuthUserOrThrow({ email, password, displayName }) {
+  try {
+    return await getAuth().createUser({ email, password, displayName });
+  } catch (error) {
+    const message =
+      {
+        "auth/email-already-exists": "An account with this email already exists.",
+        "auth/invalid-email": "That email address is invalid.",
+        "auth/invalid-password": "Password must be at least 6 characters.",
+        "auth/phone-number-already-exists": "This phone number is already in use.",
+      }[error.code] ?? error.message ?? "Could not create the account.";
+    throw new HttpsError("invalid-argument", message);
+  }
 }
 
 /**
@@ -286,37 +325,109 @@ exports.createUserAccount = onCall({ secrets: ["RESEND_API_KEY"] }, async (reque
 
   const tempPassword = generateTempPassword();
 
-  const userRecord = await getAuth().createUser({
+  const userRecord = await createAuthUserOrThrow({
     email,
     password: tempPassword,
     displayName: fullName.trim(),
   });
 
-  await db.collection("users").doc(userRecord.uid).set({
-    fullName: fullName.trim(),
-    email,
-    phone: typeof phone === "string" ? phone.trim() : null,
-    role,
-    isApproved: true,
-    isActive: true,
-    memberSince: FieldValue.serverTimestamp(),
-    createdBy: request.auth.uid,
-    mustChangePassword: true,
-  });
+  // Everything past this point can fail independently of Auth-user
+  // creation; if any of it does, delete the just-created Auth user rather
+  // than leaving an orphaned account with no Firestore profile (previously
+  // this function had no rollback at all).
+  try {
+    await db.collection("users").doc(userRecord.uid).set({
+      fullName: fullName.trim(),
+      email,
+      phone: typeof phone === "string" ? phone.trim() : null,
+      role,
+      isActive: true,
+      memberSince: FieldValue.serverTimestamp(),
+      createdBy: request.auth.uid,
+      mustChangePassword: true,
+    });
 
-  await sendWelcomeEmail({ toEmail: email, fullName: fullName.trim(), tempPassword, role });
+    await sendWelcomeEmail({ toEmail: email, fullName: fullName.trim(), tempPassword, role });
 
-  await writeAuditLog({
-    action: `Created ${role} account for ${email}`,
-    performedBy: request.auth.uid,
-    newValue: userRecord.uid,
-  });
+    await writeAuditLog({
+      action: `Created ${role} account for ${email}`,
+      performedBy: request.auth.uid,
+      newValue: userRecord.uid,
+    });
 
-  await notifyUser(userRecord.uid, {
-    title: "Welcome to Hamro Kosh",
-    body: "Your account is ready. Check your email for your temporary password.",
-    category: "system",
-  });
+    await notifyUser(userRecord.uid, {
+      title: "Welcome to Hamro Kosh",
+      body: "Your account is ready. Check your email for your temporary password.",
+      category: "system",
+    });
+  } catch (error) {
+    await getAuth()
+      .deleteUser(userRecord.uid)
+      .catch((cleanupError) =>
+        logger.error(`Failed to roll back orphaned Auth user ${userRecord.uid}`, cleanupError),
+      );
+    throw error;
+  }
+
+  return { uid: userRecord.uid };
+});
+
+/**
+ * Callable, unauthenticated: a prospective member's self-registration —
+ * name, phone, email and password. There is no invite code and no approval
+ * step, and no "treasurer" role — only member/admin/superAdmin exist.
+ * Anyone with the app can register and is immediately active; access is
+ * controlled by who is handed the app, not by a code inside it. Runs
+ * entirely server-side, unlike the old client-side `AuthRepository.register()`
+ * (createUserWithEmailAndPassword + a separate Firestore write + a forced
+ * sign-out to undo the SDK's auto-sign-in), so the Auth-user creation and
+ * profile write happen as one guarded sequence with rollback on partial
+ * failure — the same orphaned-record risk fixed above in `createUserAccount`.
+ */
+exports.registerMember = onCall(async (request) => {
+  const { fullName, email, phone, password } = request.data ?? {};
+
+  if (typeof fullName !== "string" || fullName.trim().length < 2) {
+    throw new HttpsError("invalid-argument", "A valid full name is required.");
+  }
+  if (typeof email !== "string" || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    throw new HttpsError("invalid-argument", "A valid email is required.");
+  }
+  if (typeof password !== "string" || password.length < 8) {
+    throw new HttpsError("invalid-argument", "Password must be at least 8 characters.");
+  }
+
+  const db = getFirestore();
+  const userRecord = await createAuthUserOrThrow({ email, password, displayName: fullName.trim() });
+
+  try {
+    await db.collection("users").doc(userRecord.uid).set({
+      fullName: fullName.trim(),
+      email,
+      phone: typeof phone === "string" ? phone.trim() : null,
+      role: "member",
+      isActive: true,
+      memberSince: FieldValue.serverTimestamp(),
+      mustChangePassword: false,
+    });
+
+    await getAuth()
+      .generateEmailVerificationLink(email)
+      .catch((error) => logger.warn(`Verification link failed for ${email}: ${error.message}`));
+
+    await writeAuditLog({
+      action: `New registration: ${email}`,
+      performedBy: userRecord.uid,
+      newValue: "active",
+    });
+  } catch (error) {
+    await getAuth()
+      .deleteUser(userRecord.uid)
+      .catch((cleanupError) =>
+        logger.error(`Failed to roll back orphaned Auth user ${userRecord.uid}`, cleanupError),
+      );
+    throw error;
+  }
 
   return { uid: userRecord.uid };
 });
@@ -386,6 +497,91 @@ exports.verifyContribution = onCall(async (request) => {
   }
 
   return { ok: true };
+});
+
+/**
+ * Admin-only: records a contribution with no member-submitted proof — cash
+ * handed directly to an admin, or an older cash-book entry being brought
+ * into the app (`design_spec.md` §5e). The receiving admin's identity is
+ * the proof; a mandatory audit-trail note replaces the screenshot/reference
+ * a digital submission would otherwise require. Writes straight in as
+ * `verified` — there's no queue to sit in — with the same ledger-entry +
+ * fund-total side effects as `verifyContribution` above, so it can never
+ * drift from what an ordinary verification does to the fund's numbers.
+ */
+exports.recordContributionManually = onCall(async (request) => {
+  const caller = await requireAdmin(request.auth);
+  const { memberUid, amount, monthsCovered, date, note, category } = request.data ?? {};
+
+  if (typeof memberUid !== "string" || memberUid.length === 0) {
+    throw new HttpsError("invalid-argument", "A member is required.");
+  }
+  const numericAmount = Number(amount);
+  if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+    throw new HttpsError("invalid-argument", "A valid amount is required.");
+  }
+  if (typeof note !== "string" || note.trim().length < 3) {
+    throw new HttpsError("invalid-argument", "A note for the audit trail is required.");
+  }
+
+  const db = getFirestore();
+  const memberSnap = await db.collection("users").doc(memberUid).get();
+  if (!memberSnap.exists) {
+    throw new HttpsError("not-found", "Member not found.");
+  }
+  const member = memberSnap.data();
+
+  const isSpecial = category === "special";
+  const months = isSpecial ? 1 : Math.max(1, Math.round(Number(monthsCovered) || 1));
+  const entryDate = date ? new Date(date) : new Date();
+
+  const contributionRef = db.collection("users").doc(memberUid).collection("contributions").doc();
+  await contributionRef.set({
+    category: isSpecial ? "special" : "monthly",
+    amount: numericAmount,
+    date: entryDate,
+    status: "verified",
+    monthsCovered: months,
+    proofUrl: null,
+    paymentMethod: "No proof — recorded by admin",
+    memberUid,
+    memberName: member.fullName ?? null,
+    recordedBy: request.auth.uid,
+    createdAt: FieldValue.serverTimestamp(),
+  });
+
+  await db.collection("transactions").add({
+    type: isSpecial ? "specialContribution" : "monthlyContribution",
+    amount: numericAmount,
+    date: entryDate,
+    description: `${isSpecial ? "Special contribution" : "Monthly contribution"} — no proof, recorded by ${caller.fullName || "an admin"}`,
+    memberName: member.fullName ?? null,
+    reference: contributionRef.id,
+  });
+
+  await db.collection("fund").doc("summary").set(
+    {
+      availableBalance: FieldValue.increment(numericAmount),
+      totalContributions: isSpecial ? FieldValue.increment(0) : FieldValue.increment(numericAmount),
+      totalSpecialContributions: isSpecial ? FieldValue.increment(numericAmount) : FieldValue.increment(0),
+    },
+    { merge: true },
+  );
+
+  await writeAuditLog({
+    action: `Recorded a no-proof contribution for ${member.fullName || memberUid}`,
+    performedBy: request.auth.uid,
+    newValue: `NPR ${numericAmount}`,
+    reason: note.trim(),
+  });
+
+  await notifyUser(memberUid, {
+    title: "Contribution recorded",
+    body: `NPR ${numericAmount.toLocaleString()} was recorded to your account by an admin.`,
+    category: "financial",
+  });
+
+  return { id: contributionRef.id };
 });
 
 /**
@@ -723,6 +919,69 @@ exports.recordExpense = onCall(async (request) => {
 });
 
 /**
+ * SRS §44 — corrects a mistake (wrong contribution/expense/repayment/loan
+ * amount) without ever editing or deleting the original ledger entry (§51
+ * rule 3: financial history is append-only). Instead this appends a linked
+ * `adjustment` entry — signed `amount` credits the fund back (positive) or
+ * debits it further (negative) — and keeps the original record, the
+ * correction, the reason, the responsible admin, and the timestamp, exactly
+ * as §44 requires (the correction itself + who/why/when lives in
+ * `audit_log`; the amount + reference to the original lives in the new
+ * `transactions` doc).
+ */
+exports.correctTransaction = onCall(async (request) => {
+  await requireAdmin(request.auth);
+  const { originalTransactionId, amount, reason } = request.data ?? {};
+
+  if (typeof originalTransactionId !== "string" || originalTransactionId.length === 0) {
+    throw new HttpsError("invalid-argument", "originalTransactionId is required.");
+  }
+  if (typeof amount !== "number" || amount === 0 || !Number.isFinite(amount)) {
+    throw new HttpsError("invalid-argument", "A non-zero correction amount is required.");
+  }
+  if (typeof reason !== "string" || reason.trim().length < 3) {
+    throw new HttpsError("invalid-argument", "A reason of at least 3 characters is required.");
+  }
+
+  const db = getFirestore();
+  const originalRef = db.collection("transactions").doc(originalTransactionId);
+  const originalSnap = await originalRef.get();
+  if (!originalSnap.exists) {
+    throw new HttpsError("not-found", "Original transaction not found.");
+  }
+  const original = originalSnap.data();
+  if (original.type === "adjustment") {
+    throw new HttpsError("failed-precondition", "A correction entry can't itself be corrected — correct the original entry instead.");
+  }
+
+  await db.collection("transactions").add({
+    type: "adjustment",
+    amount: Math.abs(amount),
+    direction: amount > 0 ? "credit" : "debit",
+    date: FieldValue.serverTimestamp(),
+    description: reason.trim(),
+    reference: originalTransactionId,
+    correctedType: original.type ?? null,
+    memberName: original.memberName ?? null,
+  });
+
+  await db.collection("fund").doc("summary").set(
+    { availableBalance: FieldValue.increment(amount) },
+    { merge: true },
+  );
+
+  await writeAuditLog({
+    action:
+      `Corrected transaction ${originalTransactionId} ` +
+      `(${amount > 0 ? "+" : "-"}NPR ${Math.abs(amount).toLocaleString()}): ${reason.trim()}`,
+    performedBy: request.auth.uid,
+    newValue: reason.trim(),
+  });
+
+  return { ok: true };
+});
+
+/**
  * SRS §12/§41/§54 — transparency isn't just "visible if you open the app";
  * a contribution or loan disbursement notifies every active member by
  * email, the same way SRS §28 already expects for individual account
@@ -736,13 +995,15 @@ exports.notifyOnTransaction = onDocumentCreated(
     if (!data || !BROADCAST_TRANSACTION_TYPES.has(data.type)) return;
 
     const db = getFirestore();
-    const usersSnap = await db
-      .collection("users")
-      .where("isApproved", "==", true)
-      .where("isActive", "==", true)
-      .get();
+    const usersSnap = await db.collection("users").where("isActive", "==", true).get();
 
+    const preferenceKey = EMAIL_PREFERENCE_KEY_BY_TRANSACTION_TYPE[data.type];
     const recipients = usersSnap.docs
+      .filter((doc) => {
+        if (!preferenceKey) return true;
+        const prefs = doc.data().emailPreferences || {};
+        return prefs[preferenceKey] !== false;
+      })
       .map((doc) => doc.data().email)
       .filter((email) => typeof email === "string" && email.length > 0);
 
@@ -795,10 +1056,21 @@ exports.notifyOnTransaction = onDocumentCreated(
  * could win. Checks Firestore first and exits immediately if a super admin
  * already exists, so re-deploys/cold-starts are always safe no-ops.
  */
-const SUPER_ADMIN_EMAIL = "ranad4508@gmail.com";
-const SUPER_ADMIN_PASSWORD = "Password@123#";
-
+// Read from `functions/.env` (gitignored — see functions/.env.example),
+// never hardcoded: a real email + password committed to source control is a
+// credential leak, not a "seed default". If either is unset, seeding is
+// skipped with a warning rather than falling back to a guessable literal.
 async function seedSuperAdminIfMissing() {
+  const superAdminEmail = process.env.SUPER_ADMIN_EMAIL;
+  const superAdminPassword = process.env.SUPER_ADMIN_PASSWORD;
+  if (!superAdminEmail || !superAdminPassword) {
+    logger.warn(
+      "SUPER_ADMIN_EMAIL/SUPER_ADMIN_PASSWORD not set — skipping super admin seed. " +
+        "See functions/.env.example.",
+    );
+    return;
+  }
+
   const db = getFirestore();
 
   const existing = await db.collection("users").where("role", "==", "superAdmin").limit(1).get();
@@ -810,13 +1082,13 @@ async function seedSuperAdminIfMissing() {
   const auth = getAuth();
   let userRecord;
   try {
-    userRecord = await auth.getUserByEmail(SUPER_ADMIN_EMAIL);
-    logger.info(`Auth user for ${SUPER_ADMIN_EMAIL} already exists; promoting to superAdmin.`);
+    userRecord = await auth.getUserByEmail(superAdminEmail);
+    logger.info(`Auth user for ${superAdminEmail} already exists; promoting to superAdmin.`);
   } catch (error) {
     if (error.code !== "auth/user-not-found") throw error;
     userRecord = await auth.createUser({
-      email: SUPER_ADMIN_EMAIL,
-      password: SUPER_ADMIN_PASSWORD,
+      email: superAdminEmail,
+      password: superAdminPassword,
       displayName: "Super Admin",
     });
     logger.info(`Created super admin Auth user ${userRecord.uid}.`);
@@ -825,9 +1097,8 @@ async function seedSuperAdminIfMissing() {
   await db.collection("users").doc(userRecord.uid).set(
     {
       fullName: "Super Admin",
-      email: SUPER_ADMIN_EMAIL,
+      email: superAdminEmail,
       role: "superAdmin",
-      isApproved: true,
       isActive: true,
       memberSince: FieldValue.serverTimestamp(),
       mustChangePassword: true,
@@ -836,7 +1107,7 @@ async function seedSuperAdminIfMissing() {
   );
 
   await writeAuditLog({
-    action: `Seeded super admin account (${SUPER_ADMIN_EMAIL})`,
+    action: `Seeded super admin account (${superAdminEmail})`,
     performedBy: "system",
     newValue: userRecord.uid,
   });
@@ -901,7 +1172,11 @@ exports.dailyLoanSweep = onSchedule(
       try {
         const userSnap = await db.collection("users").doc(loan.memberId).get();
         const email = userSnap.exists ? userSnap.data().email : null;
-        if (email) {
+        const prefs = userSnap.exists ? userSnap.data().emailPreferences || {} : {};
+        // SRS §46 — "repayment reminders" is one of the toggleable
+        // categories; the in-app notification above is unaffected, only
+        // the email is gated.
+        if (email && prefs.repaymentReminders !== false) {
           await sendEmail({
             toEmails: [email],
             subject: title,

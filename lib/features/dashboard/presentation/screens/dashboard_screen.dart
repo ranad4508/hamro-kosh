@@ -6,6 +6,7 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/router/route_paths.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/widgets/fade_slide_in.dart';
+import '../../../../core/widgets/initials_avatar.dart';
 import '../../../../core/widgets/section_header.dart';
 import '../../../auth/providers/auth_providers.dart';
 import '../../../fund/presentation/widgets/fund_hero_card.dart';
@@ -30,6 +31,17 @@ class DashboardScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 12),
+          child: GestureDetector(
+            onTap: () => context.push(RoutePaths.profile),
+            child: InitialsAvatar(
+              initials: profile?.initials ?? '?',
+              imageUrl: profile?.photoUrl,
+              radius: 16,
+            ),
+          ),
+        ),
         title: Text(
           profile == null
               ? 'Overview'
@@ -86,7 +98,7 @@ class DashboardScreen extends ConsumerWidget {
             SectionHeader(
               title: 'Recent transactions',
               actionLabel: 'See all',
-              onAction: () => context.push(RoutePaths.transactions),
+              onAction: () => context.push(RoutePaths.ledger),
             ),
             const SizedBox(height: AppSpacing.sm),
             recentTransactions.when(

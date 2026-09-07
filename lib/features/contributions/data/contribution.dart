@@ -20,6 +20,8 @@ class Contribution {
     this.monthsCovered = 1,
     this.proofUrl,
     this.campaignId,
+    this.receivingAdminId,
+    this.receivingAdminName,
   });
 
   final String id;
@@ -52,6 +54,13 @@ class Contribution {
   /// special contribution.
   final String? campaignId;
 
+  /// Set only when [paymentMethod] is "Cash to admin" — the admin's own
+  /// identity is the proof (`design_spec.md` §5b), so no [proofUrl] or
+  /// [reference] is required in that case; that admin later confirms
+  /// they received and banked the cash.
+  final String? receivingAdminId;
+  final String? receivingAdminName;
+
   /// e.g. "Covers Jan – May 2026" for a 5-month catch-up payment, or just
   /// the month itself when `monthsCovered == 1`.
   String get coveredMonthsLabel {
@@ -81,6 +90,8 @@ class Contribution {
       monthsCovered: (data['monthsCovered'] as num?)?.toInt() ?? 1,
       proofUrl: data['proofUrl'] as String?,
       campaignId: data['campaignId'] as String?,
+      receivingAdminId: data['receivingAdminId'] as String?,
+      receivingAdminName: data['receivingAdminName'] as String?,
     );
   }
 
@@ -97,5 +108,7 @@ class Contribution {
     'monthsCovered': monthsCovered,
     'proofUrl': proofUrl,
     'campaignId': campaignId,
+    'receivingAdminId': receivingAdminId,
+    'receivingAdminName': receivingAdminName,
   };
 }

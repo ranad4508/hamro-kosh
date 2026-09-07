@@ -4,13 +4,19 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/router/route_paths.dart';
+import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/app_text_field.dart';
-import '../../../../core/utils/validators.dart';
 import '../../providers/auth_form_controller.dart';
 import '../widgets/auth_scaffold.dart';
 
+/// The sign-in screen — no design mockup existed for this anywhere in the
+/// 6-turn Nocturne design (`design_spec.md`'s headline finding: only a bare
+/// "Already a member? Sign in" text link was drawn), so this is built fresh
+/// in the same visual language (dark surfaces, bilingual labels, the shared
+/// `AuthScaffold`/`AppTextField`/`AppButton` component set) rather than
+/// left as a design gap.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -34,7 +40,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
     await ref
         .read(authFormControllerProvider.notifier)
-        .signIn(email: _email.text.trim(), password: _password.text);
+        .signIn(_email.text.trim(), _password.text);
     // Successful sign-in is picked up by the router's authStateProvider
     // listener automatically; on failure the ref.listen below shows it.
   }
@@ -45,16 +51,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (next.hasError) {
         AppSnackbar.showError(
           context,
-          title: 'Sign in failed',
-          message: 'Could not sign in. Check your details and try again.',
+          title: 'Could not sign in',
+          message: next.error.toString(),
         );
       }
     });
     final formState = ref.watch(authFormControllerProvider);
 
     return AuthScaffold(
-      title: 'Welcome back',
-      subtitle: 'Sign in to continue to your community fund',
+      titleEn: 'Welcome back',
+      titleNe: 'फेरि स्वागत छ',
+      subtitleEn: 'Sign in to continue to your community fund.',
+      subtitleNe: 'तपाईंको कोषमा जान साइन इन गर्नुहोस्।',
       children: [
         Form(
           key: _formKey,
@@ -89,7 +97,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
               const SizedBox(height: AppSpacing.sm),
               AppButton(
-                label: 'Sign In',
+                label: 'Sign in · साइन इन',
                 isLoading: formState.isLoading,
                 onPressed: _submit,
               ),
@@ -100,10 +108,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text("Don't have an account?"),
+            const Text("New here?"),
             TextButton(
               onPressed: () => context.push(RoutePaths.register),
-              child: const Text('Create account'),
+              child: const Text('Create an account'),
             ),
           ],
         ),
