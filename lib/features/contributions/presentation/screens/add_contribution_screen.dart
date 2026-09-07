@@ -1,19 +1,22 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nepali_utils/nepali_utils.dart';
 
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/models/contribution_type.dart';
 import '../../../../core/models/loan_status.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/bs_date_formatter.dart';
 import '../../../../core/utils/currency_formatter.dart';
-import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/bilingual_text.dart';
+import '../../../../core/widgets/full_screen_image_viewer.dart';
 import '../../../../core/widgets/initials_avatar.dart';
+import '../../../../core/widgets/month_grid_heatmap.dart';
 import '../../../../core/widgets/proof_picker.dart';
 import '../../../admin/providers/admin_providers.dart';
 import '../../../auth/providers/auth_providers.dart';
@@ -25,16 +28,45 @@ import '../../data/campaign.dart';
 import '../../data/contribution.dart';
 import '../../providers/contributions_providers.dart';
 
+import '../../../../l10n/generated/app_localizations.dart';
+
+/// Where this payment starts, in BS (year, month) — [override] wins when
+/// the member has tapped a specific gap cell; otherwise it's the month
+/// right after the latest one already covered, or the current month if
+/// nothing has been covered yet. Shared between the preview grid and
+/// [_AddContributionScreenState._submit] so what's shown is exactly what
+/// gets saved.
+(int, int) _computeStart(MemberCoverage coverage, (int, int)? override) {
+  if (override != null) return override;
+  if (coverage.coveredMonths.isEmpty) {
+    final now = NepaliDateTime.now();
+    return (now.year, now.month);
+  }
+  final latest = coverage.coveredMonths.reduce(
+    (a, b) => (a.$1 > b.$1 || (a.$1 == b.$1 && a.$2 > b.$2)) ? a : b,
+  );
+  var year = latest.$1;
+  var month = latest.$2 + 1;
+  if (month > 12) {
+    month = 1;
+    year++;
+  }
+  return (year, month);
+}
+
 enum _PaymentMethod { esewa, khalti, bank, mobileBanking, cashToAdmin }
 
 extension on _PaymentMethod {
-  String get label => switch (this) {
-    _PaymentMethod.esewa => 'eSewa',
-    _PaymentMethod.khalti => 'Khalti',
-    _PaymentMethod.bank => 'Bank transfer',
-    _PaymentMethod.mobileBanking => 'Mobile banking',
-    _PaymentMethod.cashToAdmin => 'Cash to admin',
-  };
+  String label(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return switch (this) {
+      _PaymentMethod.esewa => l10n.paymentMethodEsewa,
+      _PaymentMethod.khalti => l10n.paymentMethodKhalti,
+      _PaymentMethod.bank => l10n.paymentMethodBank,
+      _PaymentMethod.mobileBanking => l10n.paymentMethodMobileBanking,
+      _PaymentMethod.cashToAdmin => l10n.paymentMethodCash,
+    };
+  }
 
   /// Whether an admin has actually filled in this method's details — a
   /// member should only ever be offered a method that's really configured,
@@ -84,6 +116,13 @@ class _AddContributionScreenState extends ConsumerState<AddContributionScreen> {
   MemberDirectoryEntry? _receivingAdmin;
   bool _submitting = false;
 
+  /// Which BS (year, month) this payment starts from — null means "figure
+  /// it out automatically" (right after the latest covered month, or the
+  /// current month if nothing's covered yet). Set when the member taps a
+  /// specific gap cell in the grid to catch up on an *earlier* arrear
+  /// (e.g. Jestha) instead of always continuing from today.
+  (int, int)? _startOverride;
+
   @override
   void dispose() {
     _amount.dispose();
@@ -106,6 +145,22 @@ class _AddContributionScreenState extends ConsumerState<AddContributionScreen> {
     if (uid == null) return;
     final memberName = ref.read(userProfileProvider).value?.fullName;
 
+    // For a monthly contribution, save it starting from whichever BS month
+    // the preview grid actually settled on (auto-computed, or the gap month
+    // the member tapped) — never just "today," or a deliberate catch-up
+    // payment for an earlier arrear would get mis-recorded as covering the
+    // current month instead.
+    var startDate = DateTime.now();
+    if (_category == ContributionCategory.monthly) {
+      final coverage = ref.read(
+        memberCoverageProvider((uid: uid, memberSince: ref.read(userProfileProvider).value?.memberSince)),
+      ).value;
+      if (coverage != null) {
+        final (year, month) = _computeStart(coverage, _startOverride);
+        startDate = NepaliDateTime(year, month, 1).toDateTime();
+      }
+    }
+
     setState(() => _submitting = true);
     try {
       await ref
@@ -116,14 +171,14 @@ class _AddContributionScreenState extends ConsumerState<AddContributionScreen> {
               id: '',
               category: _category,
               amount: double.parse(_amount.text.trim()),
-              date: DateTime.now(),
+              date: startDate,
               status: ContributionStatus.pending,
               memberUid: uid,
               memberName: memberName,
               occasionName: _category == ContributionCategory.special
                   ? _occasion.text.trim()
                   : null,
-              paymentMethod: method.label,
+              paymentMethod: method.label(context),
               reference: method == _PaymentMethod.cashToAdmin
                   ? null
                   : _reference.text.trim(),
@@ -160,6 +215,14 @@ class _AddContributionScreenState extends ConsumerState<AddContributionScreen> {
     }
   }
 
+  void _applyPreset(double? perMonth, int months) {
+    if (perMonth == null) return;
+    setState(() {
+      _monthsCovered = months;
+      _amount.text = (perMonth * months).toStringAsFixed(0);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final fundRules = ref.watch(fundRulesProvider);
@@ -167,6 +230,15 @@ class _AddContributionScreenState extends ConsumerState<AddContributionScreen> {
     final fundAccount = fundAccountAsync.value;
     final perMonth = fundRules.value?.monthlyContributionAmount;
     final minimumAmount = (perMonth ?? 0) * _monthsCovered;
+    final profile = ref.watch(userProfileProvider).value;
+    final coverageAsync = profile == null
+        ? null
+        : ref.watch(
+            memberCoverageProvider((
+              uid: profile.uid,
+              memberSince: profile.memberSince,
+            )),
+          );
 
     final availableMethods = fundAccount == null
         ? const <_PaymentMethod>[]
@@ -192,17 +264,22 @@ class _AddContributionScreenState extends ConsumerState<AddContributionScreen> {
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.lg,
+            AppSpacing.lg,
+            MediaQuery.of(context).padding.bottom + AppSpacing.xl * 2,
+          ),
           children: [
             SegmentedButton<ContributionCategory>(
-              segments: const [
+              segments: [
                 ButtonSegment(
                   value: ContributionCategory.monthly,
-                  label: Text('Monthly'),
+                  label: Text(ContributionCategory.monthly.label(context)),
                 ),
                 ButtonSegment(
                   value: ContributionCategory.special,
-                  label: Text('Special'),
+                  label: Text(ContributionCategory.special.label(context)),
                 ),
               ],
               selected: {_category},
@@ -220,73 +297,100 @@ class _AddContributionScreenState extends ConsumerState<AddContributionScreen> {
               ),
               const SizedBox(height: AppSpacing.md),
             ],
-            AppTextField(
-              label: 'Amount (NPR)',
-              controller: _amount,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              prefixText: 'Rs. ',
-              validator: (v) {
-                final base = Validators.positiveAmount(v);
-                if (base != null) return base;
-                if (_category == ContributionCategory.monthly &&
-                    minimumAmount > 0 &&
-                    double.parse(v!.trim()) < minimumAmount) {
-                  return 'At least ${CurrencyFormatter.format(minimumAmount)} for '
-                      '$_monthsCovered month${_monthsCovered == 1 ? '' : 's'}';
-                }
-                return null;
-              },
+            // The design's big underlined-numeral amount entry
+            // (`design_spec.md` §2e) rather than a boxed text field —
+            // quick-pick chips set both the amount and (for a monthly
+            // contribution) how many months it buys at the committee's
+            // current per-month floor, matching the design's
+            // amount-implies-months preset pattern.
+            BilingualText(
+              'Amount',
+              'रकम',
+              layout: BilingualLayout.inline,
+              style: TextStyle(fontSize: 11, color: context.colors.accent),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text('Rs. ', style: Theme.of(context).textTheme.titleMedium),
+                Expanded(
+                  child: TextFormField(
+                    controller: _amount,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    style: Theme.of(context).textTheme.headlineMedium,
+                    decoration: const InputDecoration(
+                      border: UnderlineInputBorder(),
+                      isDense: true,
+                    ),
+                    validator: (v) {
+                      final base = Validators.positiveAmount(v);
+                      if (base != null) return base;
+                      if (_category == ContributionCategory.monthly &&
+                          minimumAmount > 0 &&
+                          double.parse(v!.trim()) < minimumAmount) {
+                        return 'At least ${CurrencyFormatter.format(minimumAmount)} for '
+                            '$_monthsCovered month${_monthsCovered == 1 ? '' : 's'}';
+                      }
+                      return null;
+                    },
+                  ),
+                ),
+              ],
             ),
             if (_category == ContributionCategory.monthly &&
                 perMonth != null) ...[
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                'The floor is NPR ${perMonth.toStringAsFixed(0)} a month, set by '
-                'the committee. Pay monthly or a whole quarter at once.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
-            if (_category == ContributionCategory.monthly) ...[
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                'Months covered',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Row(
+              const SizedBox(height: AppSpacing.sm),
+              Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
                 children: [
-                  IconButton.outlined(
-                    onPressed: _monthsCovered > 1
-                        ? () => setState(() => _monthsCovered--)
-                        : null,
-                    icon: const Icon(Icons.remove),
+                  _PresetChip(
+                    label: perMonth.toStringAsFixed(0),
+                    selected: _monthsCovered == 1,
+                    onTap: () => _applyPreset(perMonth, 1),
                   ),
-                  Expanded(
-                    child: Text(
-                      '$_monthsCovered month${_monthsCovered == 1 ? '' : 's'}',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
+                  _PresetChip(
+                    label: '${(perMonth * 3).toStringAsFixed(0)} · quarter',
+                    selected: _monthsCovered == 3,
+                    onTap: () => _applyPreset(perMonth, 3),
                   ),
-                  IconButton.outlined(
-                    onPressed: _monthsCovered < 12
-                        ? () => setState(() => _monthsCovered++)
-                        : null,
-                    icon: const Icon(Icons.add),
+                  _PresetChip(
+                    label: '${(perMonth * 12).toStringAsFixed(0)} · year',
+                    selected: _monthsCovered == 12,
+                    onTap: () => _applyPreset(perMonth, 12),
                   ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.xs),
+              const SizedBox(height: AppSpacing.sm),
               Text(
-                _monthsCovered == 1
-                    ? 'Covers ${DateFormatter.monthYear(DateTime.now())}'
-                    : 'Covers ${DateFormatter.monthYear(DateTime.now())} – '
-                          '${DateFormatter.monthYear(DateTime(DateTime.now().year, DateTime.now().month + _monthsCovered - 1))}'
-                          ' (catching up or paying ahead)',
+                'The floor is NPR ${perMonth.toStringAsFixed(0)} a month, set by '
+                'the committee. Anything above it is welcome, and you may pay '
+                'monthly or a whole quarter at once — ahead or in arrears.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
+              const SizedBox(height: AppSpacing.lg),
+              BilingualText(
+                'Which months does this cover?',
+                'यसले कुन महिना समेट्छ?',
+                layout: BilingualLayout.inline,
+                style: TextStyle(fontSize: 11, color: context.colors.accent),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              switch (coverageAsync) {
+                AsyncData(:final value) => _CoveragePreview(
+                  coverage: value,
+                  monthsCovered: _monthsCovered,
+                  onMonthsChanged: (months) =>
+                      setState(() => _monthsCovered = months),
+                  startOverride: _startOverride,
+                  onStartTapped: (start) =>
+                      setState(() => _startOverride = start),
+                ),
+                _ => const SizedBox.shrink(),
+              },
             ],
             const SizedBox(height: AppSpacing.lg),
             BilingualText(
@@ -316,21 +420,36 @@ class _AddContributionScreenState extends ConsumerState<AddContributionScreen> {
                 ),
               )
             else ...[
-              SegmentedButton<_PaymentMethod>(
-                segments: [
-                  for (final m in availableMethods)
-                    ButtonSegment(value: m, label: Text(m.label)),
-                ],
-                selected: {method!},
-                onSelectionChanged: (selection) =>
-                    setState(() => _method = selection.first),
+              Material(
+                color: context.colors.surface,
+                borderRadius: BorderRadius.circular(12),
+                clipBehavior: Clip.antiAlias,
+                child: RadioGroup<_PaymentMethod>(
+                  groupValue: method,
+                  onChanged: (m) => setState(() => _method = m),
+                  child: Column(
+                    children: [
+                      for (var i = 0; i < availableMethods.length; i++) ...[
+                        if (i > 0)
+                          Divider(height: 1, color: context.colors.divider),
+                        RadioListTile<_PaymentMethod>(
+                          value: availableMethods[i],
+                          title: Text(availableMethods[i].label(context)),
+                          subtitle: Text(
+                            _accountSubtitle(availableMethods[i], fundAccount),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               ),
               const SizedBox(height: AppSpacing.md),
               if (isDigital) ...[
                 _FundAccountCard(account: fundAccount!, method: method),
                 const SizedBox(height: AppSpacing.md),
                 AppTextField(
-                  label: '${method.label} transaction reference',
+                  label: '${method.label(context)} transaction reference',
                   controller: _reference,
                   validator: (v) => Validators.required(v, field: 'Reference'),
                 ),
@@ -369,28 +488,32 @@ class _AddContributionScreenState extends ConsumerState<AddContributionScreen> {
                         child: Center(child: CircularProgressIndicator()),
                       ),
                       error: (e, _) => Text('$e'),
-                      data: (items) => Column(
-                        children: [
-                          for (final admin in items)
-                            RadioListTile<String>(
-                              contentPadding: EdgeInsets.zero,
-                              value: admin.uid,
-                              groupValue: _receivingAdmin?.uid,
-                              onChanged: (_) =>
-                                  setState(() => _receivingAdmin = admin),
-                              title: Row(
-                                children: [
-                                  InitialsAvatar.fromName(
-                                    admin.fullName,
-                                    imageUrl: admin.photoUrl,
-                                    radius: 16,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Text(admin.fullName),
-                                ],
+                      data: (items) => RadioGroup<String>(
+                        groupValue: _receivingAdmin?.uid,
+                        onChanged: (uid) => setState(
+                          () => _receivingAdmin =
+                              items.where((a) => a.uid == uid).firstOrNull,
+                        ),
+                        child: Column(
+                          children: [
+                            for (final admin in items)
+                              RadioListTile<String>(
+                                contentPadding: EdgeInsets.zero,
+                                value: admin.uid,
+                                title: Row(
+                                  children: [
+                                    InitialsAvatar.fromName(
+                                      admin.fullName,
+                                      imageUrl: admin.photoUrl,
+                                      radius: 16,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Text(admin.fullName),
+                                  ],
+                                ),
                               ),
-                            ),
-                        ],
+                          ],
+                        ),
                       ),
                     );
                   },
@@ -402,7 +525,7 @@ class _AddContributionScreenState extends ConsumerState<AddContributionScreen> {
                     ? 'Submit for approval'
                     : 'Send to ${_receivingAdmin!.fullName.split(' ').first} to confirm',
                 isLoading: _submitting,
-                onPressed: () => _submit(method),
+                onPressed: () => _submit(method!),
               ),
             ],
           ],
@@ -414,6 +537,181 @@ class _AddContributionScreenState extends ConsumerState<AddContributionScreen> {
 
 extension<T> on List<T> {
   T? get firstOrNull => isEmpty ? null : first;
+}
+
+/// The account snippet shown beneath each payment method row
+/// (`design_spec.md` §2e — "eSewa — Hamro Kosh 9841••••21").
+String _accountSubtitle(_PaymentMethod method, FundAccount? account) {
+  if (account == null) return '';
+  return switch (method) {
+    _PaymentMethod.esewa => '${account.accountName} — ${account.esewaId}',
+    _PaymentMethod.khalti => '${account.accountName} — ${account.khaltiId}',
+    _PaymentMethod.bank =>
+      '${account.accountName}, ${account.bankName ?? 'Bank'} — '
+          '${account.bankAccountNumber}',
+    _PaymentMethod.mobileBanking =>
+      '${account.mobileBankingName ?? 'Mobile banking'} — '
+          '${account.mobileBankingNumber}',
+    _PaymentMethod.cashToAdmin => 'Hand it to an admin — they bank it and confirm',
+  };
+}
+
+class _PresetChip extends StatelessWidget {
+  const _PresetChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? colors.accent : colors.surfaceSunken,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w500,
+            color: selected ? colors.bg : colors.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// "Which months does this cover?" (`design_spec.md` §2e) — the month-grid
+/// heatmap plus a plain-language result sentence, computed from where the
+/// member's real coverage currently ends rather than a fixed example. Any
+/// still-open gap month can be tapped directly to start the payment there
+/// instead — e.g. it's Bhadra, but Jestha/Asar/Shrawan are still unpaid, so
+/// the member taps Jestha to catch those up rather than only ever being
+/// offered "continue from today forward."
+class _CoveragePreview extends StatelessWidget {
+  const _CoveragePreview({
+    required this.coverage,
+    required this.monthsCovered,
+    required this.onMonthsChanged,
+    required this.startOverride,
+    required this.onStartTapped,
+  });
+
+  final MemberCoverage coverage;
+  final int monthsCovered;
+  final ValueChanged<int> onMonthsChanged;
+  final (int, int)? startOverride;
+  final void Function((int, int)? start) onStartTapped;
+
+  @override
+  Widget build(BuildContext context) {
+    final now = NepaliDateTime.now();
+    final (startYear, startMonth) = _computeStart(coverage, startOverride);
+
+    final thisPayment = <(int, int)>{};
+    var y = startYear;
+    var m = startMonth;
+    for (var i = 0; i < monthsCovered; i++) {
+      thisPayment.add((y, m));
+      m++;
+      if (m > 12) {
+        m = 1;
+        y++;
+      }
+    }
+
+    final cells = List.generate(12, (i) {
+      final monthNum = i + 1;
+      final key = (now.year, monthNum);
+      final state = coverage.coveredMonths.contains(key)
+          ? MonthCellState.covered
+          : thisPayment.contains(key)
+          ? MonthCellState.coveringNow
+          : monthNum <= now.month
+          ? MonthCellState.gap
+          : MonthCellState.future;
+      return (label: BsDateFormatter.monthAbbreviations[i], state: state);
+    });
+
+    final ordered = thisPayment.toList()
+      ..sort(
+        (a, b) => a.$1 != b.$1 ? a.$1.compareTo(b.$1) : a.$2.compareTo(b.$2),
+      );
+    final resultText = ordered.isEmpty
+        ? 'Pick an amount to see which months this covers.'
+        : ordered.length == 1
+        ? 'This covers ${BsDateFormatter.monthNames[ordered.first.$2 - 1]}.'
+        : 'This covers ${BsDateFormatter.monthNames[ordered.first.$2 - 1]} '
+              'through ${BsDateFormatter.monthNames[ordered.last.$2 - 1]}.';
+
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: context.colors.surface,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          MonthGridHeatmap(
+            cells: cells,
+            columns: 4,
+            onCellTap: (index) {
+              final monthNum = index + 1;
+              final state = cells[index].state;
+              if (state == MonthCellState.gap) {
+                onStartTapped((now.year, monthNum));
+              } else if (state == MonthCellState.coveringNow) {
+                onStartTapped(null);
+              }
+            },
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Tap an open month above to catch up on it specifically.',
+            style: TextStyle(fontSize: 10.5, color: context.colors.textQuaternary),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  resultText,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                onPressed: monthsCovered > 1
+                    ? () => onMonthsChanged(monthsCovered - 1)
+                    : null,
+                icon: const Icon(Icons.remove_circle_outline, size: 20),
+              ),
+              Text('$monthsCovered mo'),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                onPressed: monthsCovered < 12
+                    ? () => onMonthsChanged(monthsCovered + 1)
+                    : null,
+                icon: const Icon(Icons.add_circle_outline, size: 20),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _FundAccountCard extends StatelessWidget {
@@ -458,13 +756,16 @@ class _FundAccountCard extends StatelessWidget {
             Text(detail, style: TextStyle(color: colors.textSecondary, fontSize: 12.5)),
           if (qrUrl != null) ...[
             const SizedBox(height: 10),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: CachedNetworkImage(
-                imageUrl: qrUrl,
-                height: 160,
-                width: 160,
-                fit: BoxFit.contain,
+            GestureDetector(
+              onTap: () => showFullScreenImage(context, qrUrl),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: CachedNetworkImage(
+                  imageUrl: qrUrl,
+                  height: 160,
+                  width: 160,
+                  fit: BoxFit.contain,
+                ),
               ),
             ),
           ],

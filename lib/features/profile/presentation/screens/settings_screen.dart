@@ -5,6 +5,7 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/localization/locale_controller.dart';
 import '../../../../core/security/app_lock_controller.dart';
 import '../../../../core/theme/theme_mode_controller.dart';
+import '../../../../core/widgets/app_toggle.dart';
 import '../../../auth/providers/auth_providers.dart';
 import '../../data/email_preferences.dart';
 import '../../providers/profile_providers.dart';
@@ -74,7 +75,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpacing.xl),
           Text('Security', style: Theme.of(context).textTheme.titleSmall),
-          SwitchListTile(
+          AppSwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('App lock'),
             subtitle: const Text(
@@ -96,7 +97,7 @@ class SettingsScreen extends ConsumerWidget {
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: AppSpacing.sm),
-          SwitchListTile(
+          AppSwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Contribution confirmations'),
             value: emailPrefs.contributionConfirmations,
@@ -104,14 +105,14 @@ class SettingsScreen extends ConsumerWidget {
               emailPrefs.copyWith(contributionConfirmations: value),
             ),
           ),
-          SwitchListTile(
+          AppSwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Loan updates'),
             value: emailPrefs.loanUpdates,
             onChanged: (value) =>
                 updateEmailPrefs(emailPrefs.copyWith(loanUpdates: value)),
           ),
-          SwitchListTile(
+          AppSwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Repayment reminders'),
             value: emailPrefs.repaymentReminders,
@@ -119,14 +120,14 @@ class SettingsScreen extends ConsumerWidget {
               emailPrefs.copyWith(repaymentReminders: value),
             ),
           ),
-          SwitchListTile(
+          AppSwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Monthly reports'),
             value: emailPrefs.monthlyReports,
             onChanged: (value) =>
                 updateEmailPrefs(emailPrefs.copyWith(monthlyReports: value)),
           ),
-          SwitchListTile(
+          AppSwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Community announcements'),
             value: emailPrefs.communityAnnouncements,

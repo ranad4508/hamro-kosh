@@ -1,20 +1,21 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/models/loan_status.dart';
+import '../../../../core/router/route_paths.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/date_formatter.dart';
-import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/empty_state.dart';
+import '../../../../core/widgets/full_screen_image_viewer.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../../../../core/services/cloud_functions_service.dart';
 import '../../../loans/data/loan.dart';
 import '../../../loans/data/loan_repayment.dart';
 import '../../../loans/presentation/widgets/loan_card.dart';
-import '../../../loans/presentation/widgets/loan_cost_timeline.dart';
 import '../../../loans/providers/loans_providers.dart';
 import '../widgets/admin_more_menu.dart';
 
@@ -117,159 +118,10 @@ class _LoanStatusList extends ConsumerWidget {
           onTap:
               loan.status == LoanStatus.requested ||
                   loan.status == LoanStatus.underReview
-              ? () => _showReviewSheet(context, ref, loan)
+              ? () => context.push(RoutePaths.adminLoanReview(loan.id))
               : null,
         );
       },
-    );
-  }
-
-  void _showReviewSheet(BuildContext screenContext, WidgetRef ref, Loan loan) {
-    final cloudFunctions = ref.read(cloudFunctionsServiceProvider);
-    final allowedMonths = loan.category.allowedRepaymentMonths;
-    final monthsNotifier = ValueNotifier<int>(allowedMonths.first);
-
-    // Both actions go through a Cloud Function rather than a direct
-    // Firestore write: approving a loan also has to record the ledger
-    // entry, update the fund total, and (via the notifyOnTransaction
-    // trigger) broadcast the transparency email (SRS §12/§41/§54) — see
-    // functions/index.js. The interest rate is never sent from here: it's
-    // fixed by `loan.category` and computed server-side.
-    Future<void> reject(BuildContext sheetContext) async {
-      try {
-        await cloudFunctions.rejectLoan(loan.id);
-        if (sheetContext.mounted) Navigator.of(sheetContext).pop();
-        if (screenContext.mounted) {
-          AppSnackbar.showInfo(
-            screenContext,
-            title: 'Loan rejected',
-            message: loan.purpose,
-          );
-        }
-      } on CloudFunctionsApiException catch (e) {
-        if (screenContext.mounted) {
-          AppSnackbar.showError(
-            screenContext,
-            title: 'Could not reject loan',
-            message: e.message,
-          );
-        }
-      }
-    }
-
-    Future<void> approve(BuildContext sheetContext) async {
-      try {
-        await cloudFunctions.approveLoan(
-          loanId: loan.id,
-          repaymentMonths: monthsNotifier.value,
-        );
-        if (sheetContext.mounted) Navigator.of(sheetContext).pop();
-        if (screenContext.mounted) {
-          AppSnackbar.showSuccess(
-            screenContext,
-            title: 'Loan approved',
-            message:
-                'Repayment schedule set for ${loan.borrowerName ?? 'the borrower'}.',
-          );
-        }
-      } on CloudFunctionsApiException catch (e) {
-        if (screenContext.mounted) {
-          AppSnackbar.showError(
-            screenContext,
-            title: 'Could not approve loan',
-            message: e.message,
-          );
-        }
-      }
-    }
-
-    showModalBottomSheet(
-      context: screenContext,
-      isScrollControlled: true,
-      builder: (sheetContext) => Padding(
-        padding: EdgeInsets.only(
-          left: AppSpacing.lg,
-          right: AppSpacing.lg,
-          top: AppSpacing.lg,
-          bottom: MediaQuery.of(sheetContext).viewInsets.bottom + AppSpacing.lg,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Review loan request',
-                style: Theme.of(sheetContext).textTheme.titleMedium,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                '${loan.category.label} loan · ${CurrencyFormatter.format(loan.amount)} · '
-                '${loan.category.monthlyInterestRatePercent}% / month',
-                style: Theme.of(sheetContext).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                loan.category.description,
-                style: Theme.of(sheetContext).textTheme.bodySmall,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              if (allowedMonths.length > 1) ...[
-                Text(
-                  'Repayment period',
-                  style: Theme.of(sheetContext).textTheme.bodyMedium,
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                ValueListenableBuilder<int>(
-                  valueListenable: monthsNotifier,
-                  builder: (context, months, _) => SegmentedButton<int>(
-                    segments: allowedMonths
-                        .map(
-                          (m) =>
-                              ButtonSegment(value: m, label: Text('$m months')),
-                        )
-                        .toList(),
-                    selected: {months},
-                    onSelectionChanged: (selection) =>
-                        monthsNotifier.value = selection.first,
-                  ),
-                ),
-              ] else
-                Text(
-                  'Repayment period: ${allowedMonths.first} months',
-                  style: Theme.of(sheetContext).textTheme.bodyMedium,
-                ),
-              const SizedBox(height: AppSpacing.md),
-              ValueListenableBuilder<int>(
-                valueListenable: monthsNotifier,
-                builder: (context, months, _) => LoanCostTimeline(
-                  principal: loan.amount,
-                  category: loan.category,
-                  dueMonths: months,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => reject(sheetContext),
-                      child: const Text('Reject'),
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: AppButton(
-                      label: 'Approve',
-                      onPressed: () => approve(sheetContext),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }
@@ -304,39 +156,55 @@ class _PendingRepaymentsTab extends ConsumerWidget {
   }
 }
 
-class _PendingRepaymentCard extends ConsumerWidget {
+class _PendingRepaymentCard extends ConsumerStatefulWidget {
   const _PendingRepaymentCard({required this.item});
 
   final LoanRepayment item;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final cloudFunctions = ref.read(cloudFunctionsServiceProvider);
-    final loan = ref.watch(loanDetailProvider(item.loanId)).value;
+  ConsumerState<_PendingRepaymentCard> createState() => _PendingRepaymentCardState();
+}
 
-    Future<void> setStatus(bool approve) async {
-      try {
-        await cloudFunctions.verifyRepayment(
-          repaymentId: item.id,
-          approve: approve,
+class _PendingRepaymentCardState extends ConsumerState<_PendingRepaymentCard> {
+  bool _busy = false;
+
+  Future<void> _setStatus(bool approve) async {
+    // Same fix as the contribution-verify card: without this, a slow
+    // network round-trip plus a second tap on Verify/Reject fired the
+    // Cloud Function twice, splitting the same repayment into the loan's
+    // principal/interest/penalty two times over.
+    if (_busy) return;
+    setState(() => _busy = true);
+    final cloudFunctions = ref.read(cloudFunctionsServiceProvider);
+    try {
+      await cloudFunctions.verifyRepayment(
+        repaymentId: widget.item.id,
+        approve: approve,
+      );
+      if (mounted) {
+        AppSnackbar.showSuccess(
+          context,
+          title: approve ? 'Repayment verified' : 'Repayment rejected',
+          message: '${widget.item.borrowerName ?? 'Member'}\'s repayment updated.',
         );
-        if (context.mounted) {
-          AppSnackbar.showSuccess(
-            context,
-            title: approve ? 'Repayment verified' : 'Repayment rejected',
-            message: '${item.borrowerName ?? 'Member'}\'s repayment updated.',
-          );
-        }
-      } on CloudFunctionsApiException catch (e) {
-        if (context.mounted) {
-          AppSnackbar.showError(
-            context,
-            title: 'Could not update',
-            message: e.message,
-          );
-        }
       }
+    } on CloudFunctionsApiException catch (e) {
+      if (mounted) {
+        AppSnackbar.showError(
+          context,
+          title: 'Could not update',
+          message: e.message,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final item = widget.item;
+    final loan = ref.watch(loanDetailProvider(item.loanId)).value;
 
     return Card(
       child: Padding(
@@ -351,7 +219,7 @@ class _PendingRepaymentCard extends ConsumerWidget {
                   item.borrowerName ?? 'Member',
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
-                StatusBadge(label: item.status.label, tone: item.status.tone),
+                StatusBadge(label: item.status.label(context), tone: item.status.tone),
               ],
             ),
             const SizedBox(height: AppSpacing.xs),
@@ -372,13 +240,16 @@ class _PendingRepaymentCard extends ConsumerWidget {
             ],
             if (item.proofUrl != null) ...[
               const SizedBox(height: AppSpacing.sm),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: CachedNetworkImage(
-                  imageUrl: item.proofUrl!,
-                  height: 160,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
+              GestureDetector(
+                onTap: () => showFullScreenImage(context, item.proofUrl!),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: CachedNetworkImage(
+                    imageUrl: item.proofUrl!,
+                    height: 160,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
             ],
@@ -387,15 +258,21 @@ class _PendingRepaymentCard extends ConsumerWidget {
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () => setStatus(false),
+                    onPressed: _busy ? null : () => _setStatus(false),
                     child: const Text('Reject'),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: FilledButton(
-                    onPressed: () => setStatus(true),
-                    child: const Text('Verify'),
+                    onPressed: _busy ? null : () => _setStatus(true),
+                    child: _busy
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Verify'),
                   ),
                 ),
               ],

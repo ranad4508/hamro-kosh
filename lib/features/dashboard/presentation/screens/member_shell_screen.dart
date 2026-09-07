@@ -25,19 +25,22 @@ const _destinations = [
     selectedIcon: Icons.request_quote,
   ),
   AdaptiveDestination(
-    label: 'Members',
-    icon: Icons.people_outline,
-    selectedIcon: Icons.people,
+    label: 'Profile',
+    icon: Icons.person_outline,
+    selectedIcon: Icons.person,
   ),
 ];
 
-/// Member app shell: Home / Ledger / Give / Loans / Members
-/// (`design_spec.md` §2's member `.tb` tab list — matches the design's
-/// 5-tab bottom bar rather than the underlying SRS §52's nine top-level
-/// sections; Fund's summary content lives on Home, and Contributions/
-/// Transactions/Reports/Notifications/Profile are reached from Home's
-/// quick actions and each screen's header rather than crowding a sixth or
-/// seventh bottom-nav tab.
+/// Member app shell: Home / Ledger / Give / Loans / Profile. The 5th tab
+/// used to be a read-only Members directory (`design_spec.md` §2's member
+/// `.tb` tab list draws it that way) — per explicit product feedback this
+/// was swapped for a Profile/More tab instead, matching the admin shell's
+/// own "More" tab pattern: an account hub with every other member action
+/// (edit profile, settings, terms, the members directory, disputes,
+/// walkthrough) as menu rows, rather than a tab of its own. Fund's summary
+/// content lives on Home, and Contributions/Transactions/Reports/
+/// Notifications are reached from Home's quick actions and each screen's
+/// header rather than crowding a sixth or seventh bottom-nav tab.
 class MemberShellScreen extends StatelessWidget {
   const MemberShellScreen({super.key, required this.navigationShell});
 

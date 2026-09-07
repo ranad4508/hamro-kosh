@@ -10,16 +10,15 @@ import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../auth/providers/auth_providers.dart';
 
+import '../../../members/data/member_directory_entry.dart';
+import '../../../members/providers/members_providers.dart';
+
 /// SRS.md §58 RBAC addition — an admin (or super admin) provisions a new
-/// account directly, skipping the self-registration approval queue. The
-/// actual account creation + "here are your login credentials" email both
-/// happen server-side, in the `createUserAccount` Cloud Function
-/// (`functions/index.js`): a mobile client must never hold the ability to
-/// mint Firebase Auth users with an arbitrary role, and must never construct
-/// the credentials email itself (that requires the Resend API key, which
-/// stays server-only).
+/// account directly, or edits an existing member's basic details.
 class AdminCreateUserScreen extends ConsumerStatefulWidget {
-  const AdminCreateUserScreen({super.key});
+  const AdminCreateUserScreen({super.key, this.member});
+
+  final MemberDirectoryEntry? member;
 
   @override
   ConsumerState<AdminCreateUserScreen> createState() =>
@@ -28,11 +27,13 @@ class AdminCreateUserScreen extends ConsumerStatefulWidget {
 
 class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _fullName = TextEditingController();
-  final _email = TextEditingController();
-  final _phone = TextEditingController();
-  UserRole _role = UserRole.member;
+  late final _fullName = TextEditingController(text: widget.member?.fullName);
+  late final _email = TextEditingController(text: widget.member?.email);
+  late final _phone = TextEditingController(text: widget.member?.phone);
+  late UserRole _role = widget.member?.role ?? UserRole.member;
   bool _submitting = false;
+
+  bool get _isEditing => widget.member != null;
 
   @override
   void dispose() {
@@ -46,29 +47,50 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _submitting = true);
     try {
-      await ref
-          .read(cloudFunctionsServiceProvider)
-          .createUser(
-            fullName: _fullName.text.trim(),
-            email: _email.text.trim(),
-            phone: _phone.text.trim(),
-            role: _role.name,
-          );
+      final currentUid = ref.read(authStateProvider).value?.uid ?? '';
+      
+      if (_isEditing) {
+        await ref.read(membersRepositoryProvider).updateMemberWithAudit(
+          uid: widget.member!.uid,
+          fullName: _fullName.text.trim(),
+          phone: _phone.text.trim(),
+          performedBy: currentUid,
+        );
+      } else {
+        await ref
+            .read(cloudFunctionsServiceProvider)
+            .createUser(
+              fullName: _fullName.text.trim(),
+              email: _email.text.trim(),
+              phone: _phone.text.trim(),
+              role: _role.name,
+            );
+      }
+      
       if (mounted) {
         Navigator.of(context).pop();
         AppSnackbar.showSuccess(
           context,
-          title: 'Account created',
-          message:
-              '${_fullName.text.trim()} will receive their login details by email.',
+          title: _isEditing ? 'Member updated' : 'Account created',
+          message: _isEditing
+              ? 'Changes have been saved.'
+              : '${_fullName.text.trim()} will receive their login details by email.',
         );
       }
     } on CloudFunctionsApiException catch (e) {
       if (mounted) {
         AppSnackbar.showError(
           context,
-          title: 'Could not create account',
+          title: 'Could not save account',
           message: e.message,
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        AppSnackbar.showError(
+          context,
+          title: 'Error',
+          message: 'Something went wrong. Please try again.',
         );
       }
     } finally {
@@ -81,18 +103,24 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
     final canCreateAdmins = ref.watch(userRoleProvider).canCreateAdmins;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Create account')),
+      appBar: AppBar(title: Text(_isEditing ? 'Edit member' : 'Create account')),
       body: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.lg),
           children: [
-            Text(
-              'The new user will receive their login email and a temporary '
-              'password by email, and will be asked to set their own '
-              'password on first sign-in.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
+            if (!_isEditing)
+              Text(
+                'The new user will receive their login email and a temporary '
+                'password by email, and will be asked to set their own '
+                'password on first sign-in.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              )
+            else
+              Text(
+                'Update the member\'s basic contact details. Email cannot be changed.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
             const SizedBox(height: AppSpacing.lg),
             AppTextField(
               label: 'Full name',
@@ -106,6 +134,7 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
               controller: _email,
               keyboardType: TextInputType.emailAddress,
               prefixIcon: Icons.email_outlined,
+              enabled: !_isEditing,
               validator: Validators.email,
             ),
             const SizedBox(height: AppSpacing.md),
@@ -116,28 +145,30 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
               prefixIcon: Icons.phone_outlined,
               validator: Validators.phone,
             ),
-            const SizedBox(height: AppSpacing.md),
-            Text('Role', style: Theme.of(context).textTheme.bodyMedium),
-            const SizedBox(height: AppSpacing.xs),
-            SegmentedButton<UserRole>(
-              segments: [
-                const ButtonSegment(
-                  value: UserRole.member,
-                  label: Text('Member'),
-                ),
-                if (canCreateAdmins)
+            if (!_isEditing) ...[
+              const SizedBox(height: AppSpacing.md),
+              Text('Role', style: Theme.of(context).textTheme.bodyMedium),
+              const SizedBox(height: AppSpacing.xs),
+              SegmentedButton<UserRole>(
+                segments: [
                   const ButtonSegment(
-                    value: UserRole.admin,
-                    label: Text('Admin'),
+                    value: UserRole.member,
+                    label: Text('Member'),
                   ),
-              ],
-              selected: {_role},
-              onSelectionChanged: (selection) =>
-                  setState(() => _role = selection.first),
-            ),
+                  if (canCreateAdmins)
+                    const ButtonSegment(
+                      value: UserRole.admin,
+                      label: Text('Admin'),
+                    ),
+                ],
+                selected: {_role},
+                onSelectionChanged: (selection) =>
+                    setState(() => _role = selection.first),
+              ),
+            ],
             const SizedBox(height: AppSpacing.xl),
             AppButton(
-              label: 'Create account',
+              label: _isEditing ? 'Save changes' : 'Create account',
               isLoading: _submitting,
               onPressed: _submit,
             ),

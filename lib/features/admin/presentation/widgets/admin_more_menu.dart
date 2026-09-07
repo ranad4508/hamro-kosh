@@ -46,6 +46,13 @@ class AdminMoreMenu extends StatelessWidget {
           ),
         ),
         PopupMenuItem(
+          value: RoutePaths.adminEmailTemplates,
+          child: ListTile(
+            leading: Icon(Icons.email_outlined),
+            title: Text('Email templates'),
+          ),
+        ),
+        PopupMenuItem(
           value: RoutePaths.adminPrivacySettings,
           child: ListTile(
             leading: Icon(Icons.privacy_tip_outlined),

@@ -11,21 +11,59 @@
 /// read-only, sourced from `LoanCategory` directly, so it can never drift
 /// out of sync with what's actually enforced.
 class FundRules {
-  const FundRules({required this.monthlyContributionAmount});
+  const FundRules({
+    required this.monthlyContributionAmount,
+    required this.personalInterestRate,
+    required this.emergencyInterestRate,
+    required this.latePenaltyRate,
+    required this.maxConcurrentLoans,
+    required this.arrearsLimitMonths,
+  });
 
   final double monthlyContributionAmount;
+  final double personalInterestRate;
+  final double emergencyInterestRate;
+  final double latePenaltyRate;
+  final int maxConcurrentLoans;
+  final int arrearsLimitMonths;
 
-  static const defaults = FundRules(monthlyContributionAmount: 250);
+  static const defaults = FundRules(
+    monthlyContributionAmount: 250,
+    personalInterestRate: 1.0,
+    emergencyInterestRate: 0.5,
+    latePenaltyRate: 1.5,
+    maxConcurrentLoans: 2,
+    arrearsLimitMonths: 6,
+  );
 
   factory FundRules.fromFirestore(Map<String, dynamic> data) {
+    double asDouble(String key, double fallback) =>
+        (data[key] as num?)?.toDouble() ?? fallback;
+    int asInt(String key, int fallback) =>
+        (data[key] as num?)?.toInt() ?? fallback;
+
     return FundRules(
       monthlyContributionAmount:
-          (data['monthlyContributionAmount'] as num?)?.toDouble() ??
-          defaults.monthlyContributionAmount,
+          asDouble('monthlyContributionAmount', defaults.monthlyContributionAmount),
+      personalInterestRate:
+          asDouble('personalInterestRate', defaults.personalInterestRate),
+      emergencyInterestRate:
+          asDouble('emergencyInterestRate', defaults.emergencyInterestRate),
+      latePenaltyRate:
+          asDouble('latePenaltyRate', defaults.latePenaltyRate),
+      maxConcurrentLoans:
+          asInt('maxConcurrentLoans', defaults.maxConcurrentLoans),
+      arrearsLimitMonths:
+          asInt('arrearsLimitMonths', defaults.arrearsLimitMonths),
     );
   }
 
   Map<String, dynamic> toFirestore() => {
     'monthlyContributionAmount': monthlyContributionAmount,
+    'personalInterestRate': personalInterestRate,
+    'emergencyInterestRate': emergencyInterestRate,
+    'latePenaltyRate': latePenaltyRate,
+    'maxConcurrentLoans': maxConcurrentLoans,
+    'arrearsLimitMonths': arrearsLimitMonths,
   };
 }

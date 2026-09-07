@@ -10,6 +10,8 @@ import '../../../../core/widgets/empty_state.dart';
 import '../../data/campaign.dart';
 import '../../providers/campaigns_providers.dart';
 
+import '../../../../l10n/generated/app_localizations.dart';
+
 /// SRS §15 — browse admin-created special-contribution campaigns and see
 /// their progress toward a target, distinct from an ad-hoc special
 /// contribution a member tags themselves.
@@ -25,7 +27,9 @@ class CampaignsScreen extends ConsumerWidget {
       body: campaigns.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => AppErrorState(message: '$error'),
-        data: (items) {
+        data: (allItems) {
+          final items = allItems.where((c) => c.isPublished).toList();
+
           if (items.isEmpty) {
             return const EmptyState(
               icon: Icons.campaign_outlined,
@@ -47,14 +51,17 @@ class CampaignsScreen extends ConsumerWidget {
 }
 
 class CampaignCard extends ConsumerWidget {
-  const CampaignCard({super.key, required this.campaign});
+  const CampaignCard({super.key, required this.campaign, this.trailing});
 
   final Campaign campaign;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final progress = ref.watch(campaignProgressProvider(campaign.id));
     final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context);
+    final trailingWidget = trailing;
 
     return Card(
       child: Padding(
@@ -63,28 +70,41 @@ class CampaignCard extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: Text(
-                    campaign.name,
-                    style: Theme.of(context).textTheme.titleMedium,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        campaign.name,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 4),
+                      if (campaign.hasEnded)
+                        Chip(
+                          label: Text(l10n.campaignStatusEnded),
+                          visualDensity: VisualDensity.compact,
+                        )
+                      else if (campaign.isActive)
+                        Chip(
+                          label: Text(l10n.campaignStatusActive),
+                          visualDensity: VisualDensity.compact,
+                          backgroundColor: scheme.primaryContainer,
+                        )
+                      else if (!campaign.isPublished)
+                        Chip(
+                          label: Text(l10n.campaignStatusDraft),
+                          visualDensity: VisualDensity.compact,
+                          backgroundColor: scheme.surfaceContainerHighest,
+                        ),
+                    ],
                   ),
                 ),
-                if (campaign.hasEnded)
-                  Chip(
-                    label: const Text('Ended'),
-                    visualDensity: VisualDensity.compact,
-                  )
-                else if (campaign.isActive)
-                  Chip(
-                    label: const Text('Active'),
-                    visualDensity: VisualDensity.compact,
-                    backgroundColor: scheme.primaryContainer,
-                  ),
+                ?trailingWidget,
               ],
             ),
-            const SizedBox(height: AppSpacing.xs),
+            const SizedBox(height: AppSpacing.sm),
             Text(
               campaign.description,
               style: Theme.of(context).textTheme.bodyMedium,
@@ -99,21 +119,25 @@ class CampaignCard extends ConsumerWidget {
               AsyncData(:final value) => Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: campaign.targetAmount > 0
-                          ? (value / campaign.targetAmount).clamp(0, 1)
-                          : 0,
-                      minHeight: 8,
-                      backgroundColor: scheme.surfaceContainerHighest,
+                  if (campaign.targetAmount != null && campaign.targetAmount! > 0) ...[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: (value / campaign.targetAmount!).clamp(0, 1),
+                        minHeight: 8,
+                        backgroundColor: scheme.surfaceContainerHighest,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    '${CurrencyFormatter.format(value)} of ${CurrencyFormatter.format(campaign.targetAmount)}',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      '${CurrencyFormatter.format(value)} of ${CurrencyFormatter.format(campaign.targetAmount!)}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ] else
+                    Text(
+                      '${CurrencyFormatter.format(value)} raised so far',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                 ],
               ),
               _ => const SizedBox(

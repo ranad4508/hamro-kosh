@@ -69,6 +69,12 @@ class AdminSettingsScreen extends ConsumerWidget {
                 onTap: () => context.push(RoutePaths.adminDisputes),
               ),
               _MenuItem(
+                icon: Icons.email_outlined,
+                label: 'Email templates',
+                subtitle: 'Customize automated member notifications',
+                onTap: () => context.push(RoutePaths.adminEmailTemplates),
+              ),
+              _MenuItem(
                 icon: Icons.privacy_tip_outlined,
                 label: 'Privacy settings',
                 onTap: () => context.push(RoutePaths.adminPrivacySettings),

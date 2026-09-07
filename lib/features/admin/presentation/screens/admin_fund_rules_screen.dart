@@ -63,7 +63,22 @@ class _FundRulesForm extends ConsumerStatefulWidget {
 
 class _FundRulesFormState extends ConsumerState<_FundRulesForm> {
   late final _monthly = TextEditingController(
-    text: '${widget.initial.monthlyContributionAmount}',
+    text: widget.initial.monthlyContributionAmount.toStringAsFixed(0),
+  );
+  late final _personalRate = TextEditingController(
+    text: '${widget.initial.personalInterestRate}',
+  );
+  late final _emergencyRate = TextEditingController(
+    text: '${widget.initial.emergencyInterestRate}',
+  );
+  late final _latePenalty = TextEditingController(
+    text: '${widget.initial.latePenaltyRate}',
+  );
+  late final _maxLoans = TextEditingController(
+    text: '${widget.initial.maxConcurrentLoans}',
+  );
+  late final _arrearsLimit = TextEditingController(
+    text: '${widget.initial.arrearsLimitMonths}',
   );
   late final _reason = TextEditingController();
   late final _accountName = TextEditingController(
@@ -94,39 +109,53 @@ class _FundRulesFormState extends ConsumerState<_FundRulesForm> {
   bool _savingAccount = false;
 
   Future<void> _save() async {
-    final newAmount =
-        double.tryParse(_monthly.text) ??
-        widget.initial.monthlyContributionAmount;
-    if (newAmount != widget.initial.monthlyContributionAmount &&
-        _reason.text.trim().length < 3) {
+    final newAmount = double.tryParse(_monthly.text) ?? widget.initial.monthlyContributionAmount;
+    final newPersonal = double.tryParse(_personalRate.text) ?? widget.initial.personalInterestRate;
+    final newEmergency = double.tryParse(_emergencyRate.text) ?? widget.initial.emergencyInterestRate;
+    final newPenalty = double.tryParse(_latePenalty.text) ?? widget.initial.latePenaltyRate;
+    final newMaxLoans = int.tryParse(_maxLoans.text) ?? widget.initial.maxConcurrentLoans;
+    final newArrears = int.tryParse(_arrearsLimit.text) ?? widget.initial.arrearsLimitMonths;
+
+    final changed = newAmount != widget.initial.monthlyContributionAmount ||
+        newPersonal != widget.initial.personalInterestRate ||
+        newEmergency != widget.initial.emergencyInterestRate ||
+        newPenalty != widget.initial.latePenaltyRate ||
+        newMaxLoans != widget.initial.maxConcurrentLoans ||
+        newArrears != widget.initial.arrearsLimitMonths;
+
+    if (changed && _reason.text.trim().length < 3) {
       AppSnackbar.showError(
         context,
         title: 'A reason is required',
-        message:
-            'Members are told when a rule about their money changes — say '
-            'why (e.g. "agreed at AGM").',
+        message: 'Say why you are changing the fund rules.',
       );
       return;
     }
     setState(() => _saving = true);
     try {
       final uid = ref.read(authStateProvider).value?.uid;
-      final changed = newAmount != widget.initial.monthlyContributionAmount;
       final repo = ref.read(fundRulesRepositoryProvider);
+      
+      final newRules = FundRules(
+        monthlyContributionAmount: newAmount,
+        personalInterestRate: newPersonal,
+        emergencyInterestRate: newEmergency,
+        latePenaltyRate: newPenalty,
+        maxConcurrentLoans: newMaxLoans,
+        arrearsLimitMonths: newArrears,
+      );
+
       if (changed && uid != null) {
-        // One batch: the rule change and its audit entry commit together
-        // or not at all, so a failure never leaves a rule change with no
-        // record of who changed it or why.
         await repo.updateWithAudit(
-          rules: FundRules(monthlyContributionAmount: newAmount),
-          action: 'Changed minimum monthly contribution',
+          rules: newRules,
+          action: 'Updated global fund rules',
           performedBy: uid,
-          previousValue: '${widget.initial.monthlyContributionAmount}',
-          newValue: '$newAmount',
+          previousValue: 'Multiple settings changed',
+          newValue: 'Custom rules applied',
           reason: _reason.text.trim(),
         );
       } else {
-        await repo.update(FundRules(monthlyContributionAmount: newAmount));
+        await repo.update(newRules);
       }
       if (mounted) {
         AppSnackbar.showSuccess(
@@ -255,7 +284,7 @@ class _FundRulesFormState extends ConsumerState<_FundRulesForm> {
           rows: [
             for (final category in LoanCategory.values)
               _RuleRow(
-                label: '${category.label} loan',
+                label: '${category.label(context)} loan',
                 value: 'up to ${(category.maxFundShare * 100).toStringAsFixed(0)}%',
                 caption:
                     '${category.monthlyInterestRatePercent}% monthly, '
@@ -317,14 +346,60 @@ class _FundRulesFormState extends ConsumerState<_FundRulesForm> {
           ),
         ),
         const SizedBox(height: AppSpacing.xl),
-        Text('Edit contributions', style: Theme.of(context).textTheme.titleSmall),
+        Text('Edit rules', style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: AppSpacing.sm),
         AppTextField(
           label: 'Monthly contribution amount (NPR)',
           controller: _monthly,
           keyboardType: TextInputType.number,
         ),
-        const SizedBox(height: AppSpacing.sm),
+        const SizedBox(height: AppSpacing.md),
+        Row(
+          children: [
+            Expanded(
+              child: AppTextField(
+                label: 'Personal interest (%)',
+                controller: _personalRate,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: AppTextField(
+                label: 'Emergency interest (%)',
+                controller: _emergencyRate,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Row(
+          children: [
+            Expanded(
+              child: AppTextField(
+                label: 'Late penalty (%/mo)',
+                controller: _latePenalty,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: AppTextField(
+                label: 'Max concurrent loans',
+                controller: _maxLoans,
+                keyboardType: TextInputType.number,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.md),
+        AppTextField(
+          label: 'Arrears allowed (months)',
+          controller: _arrearsLimit,
+          keyboardType: TextInputType.number,
+        ),
+        const SizedBox(height: AppSpacing.md),
         AppTextField(
           label: 'Reason for change (required if changed)',
           controller: _reason,

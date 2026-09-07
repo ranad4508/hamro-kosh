@@ -5,6 +5,7 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/app_select_field.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/proof_picker.dart';
@@ -129,21 +130,12 @@ class _RecordRepaymentScreenState extends ConsumerState<RecordRepaymentScreen> {
               },
             ),
             const SizedBox(height: AppSpacing.md),
-            DropdownButtonFormField<String>(
-              initialValue: _paymentMethod,
-              decoration: const InputDecoration(labelText: 'Payment method'),
-              items: const [
-                DropdownMenuItem(value: 'Cash', child: Text('Cash')),
-                DropdownMenuItem(
-                  value: 'Bank transfer',
-                  child: Text('Bank transfer'),
-                ),
-                DropdownMenuItem(
-                  value: 'eSewa / Khalti',
-                  child: Text('eSewa / Khalti'),
-                ),
-              ],
-              onChanged: (value) => setState(() => _paymentMethod = value!),
+            AppSelectField<String>(
+              label: 'Payment method',
+              value: _paymentMethod,
+              items: const ['Cash', 'Bank transfer', 'eSewa / Khalti'],
+              itemLabel: (v) => v,
+              onChanged: (value) => setState(() => _paymentMethod = value),
             ),
             const SizedBox(height: AppSpacing.md),
             Text(

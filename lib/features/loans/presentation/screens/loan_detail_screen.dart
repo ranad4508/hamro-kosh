@@ -50,7 +50,7 @@ class LoanDetailScreen extends ConsumerWidget {
                     CurrencyFormatter.format(data.amount),
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
-                  StatusBadge(label: data.status.label, tone: data.status.tone),
+                  StatusBadge(label: data.status.label(context), tone: data.status.tone),
                 ],
               ),
               const SizedBox(height: AppSpacing.xs),
@@ -59,11 +59,17 @@ class LoanDetailScreen extends ConsumerWidget {
                   data.status == LoanStatus.active) ...[
                 const SizedBox(height: AppSpacing.md),
                 _WhatTheGroupAgreedCard(loanId: loanId),
+                const SizedBox(height: AppSpacing.sm),
+                AppOutlinedButton(
+                  label: 'Review your loan terms',
+                  expand: true,
+                  onPressed: () => context.push(RoutePaths.loanTerms(loanId)),
+                ),
               ],
               const SizedBox(height: AppSpacing.lg),
               const SectionHeader(title: 'Loan terms'),
               const SizedBox(height: AppSpacing.sm),
-              _InfoRow('Category', data.category.label),
+              _InfoRow('Category', data.category.label(context)),
               _InfoRow(
                 'Requested on',
                 DateFormatter.shortDate(data.requestedAt),
@@ -238,7 +244,7 @@ class _RepaymentTile extends StatelessWidget {
             : DateFormatter.shortDate(repayment.date),
       ),
       trailing: StatusBadge(
-        label: repayment.status.label,
+        label: repayment.status.label(context),
         tone: repayment.status.tone,
       ),
     );

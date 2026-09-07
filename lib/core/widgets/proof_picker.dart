@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../services/cloudinary_service.dart';
 import 'app_snackbar.dart';
+import 'full_screen_image_viewer.dart';
 
 /// A rectangular photo-attach control for receipts/proof images — payment
 /// proof (SRS §14), expense receipts, loan documents — sharing the same
@@ -81,11 +82,14 @@ class _ProofPickerState extends State<ProofPicker> {
         borderRadius: BorderRadius.circular(12),
         child: Stack(
           children: [
-            CachedNetworkImage(
-              imageUrl: widget.currentUrl!,
-              height: 160,
-              width: double.infinity,
-              fit: BoxFit.cover,
+            GestureDetector(
+              onTap: () => showFullScreenImage(context, widget.currentUrl!),
+              child: CachedNetworkImage(
+                imageUrl: widget.currentUrl!,
+                height: 160,
+                width: double.infinity,
+                fit: BoxFit.cover,
+              ),
             ),
             Positioned(
               top: 6,

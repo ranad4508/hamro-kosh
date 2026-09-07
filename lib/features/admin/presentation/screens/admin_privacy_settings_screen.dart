@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_sizes.dart';
+import '../../../../core/widgets/app_toggle.dart';
 import '../../../../core/widgets/empty_state.dart';
+import '../../../auth/providers/auth_providers.dart';
 import '../../data/privacy_settings.dart';
 import '../../providers/admin_providers.dart';
 
@@ -32,8 +34,21 @@ class _PrivacyForm extends ConsumerWidget {
 
   final PrivacySettings settings;
 
-  Future<void> _update(WidgetRef ref, PrivacySettings updated) {
-    return ref.read(privacyRepositoryProvider).update(updated);
+  Future<void> _update(
+    WidgetRef ref,
+    PrivacySettings updated, {
+    required String settingLabel,
+    required bool newValue,
+  }) {
+    final uid = ref.read(authStateProvider).value?.uid ?? '';
+    return ref
+        .read(privacyRepositoryProvider)
+        .updateWithAudit(
+          settings: updated,
+          settingLabel: settingLabel,
+          newValue: newValue,
+          performedBy: uid,
+        );
   }
 
   @override
@@ -49,33 +64,45 @@ class _PrivacyForm extends ConsumerWidget {
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: AppSpacing.lg),
-        SwitchListTile(
+        AppSwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: const Text('Show contribution totals'),
           subtitle: const Text(
             "Other members can see a member's total contributed",
           ),
           value: settings.showContributionAmounts,
-          onChanged: (value) =>
-              _update(ref, settings.copyWith(showContributionAmounts: value)),
+          onChanged: (value) => _update(
+            ref,
+            settings.copyWith(showContributionAmounts: value),
+            settingLabel: 'Show contribution totals',
+            newValue: value,
+          ),
         ),
-        SwitchListTile(
+        AppSwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: const Text('Show active loan status'),
           subtitle: const Text(
             'Other members can see whether someone has an outstanding loan',
           ),
           value: settings.showActiveLoanStatus,
-          onChanged: (value) =>
-              _update(ref, settings.copyWith(showActiveLoanStatus: value)),
+          onChanged: (value) => _update(
+            ref,
+            settings.copyWith(showActiveLoanStatus: value),
+            settingLabel: 'Show active loan status',
+            newValue: value,
+          ),
         ),
-        SwitchListTile(
+        AppSwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: const Text('Show phone number'),
           subtitle: const Text("Other members can see a member's phone number"),
           value: settings.showPhoneNumber,
-          onChanged: (value) =>
-              _update(ref, settings.copyWith(showPhoneNumber: value)),
+          onChanged: (value) => _update(
+            ref,
+            settings.copyWith(showPhoneNumber: value),
+            settingLabel: 'Show phone number',
+            newValue: value,
+          ),
         ),
       ],
     );

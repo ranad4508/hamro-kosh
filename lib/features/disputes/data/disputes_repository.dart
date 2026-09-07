@@ -54,12 +54,28 @@ class DisputesRepository {
   }
 
   /// Admin-only: marks a dispute resolved with an optional response visible
-  /// to the member who raised it.
-  Future<void> resolve(String disputeId, {String? adminResponse}) {
-    return _disputes.doc(disputeId).update({
+  /// to the member who raised it. Batched with an audit entry (SRS §40/§49
+  /// — dispute resolution is an admin action on a member's own complaint,
+  /// same bar as any other admin-mutable value) so the resolution and its
+  /// record land together.
+  Future<void> resolve({
+    required String disputeId,
+    required String subject,
+    required String performedBy,
+    String? adminResponse,
+  }) {
+    final batch = _firestore.batch();
+    batch.update(_disputes.doc(disputeId), {
       'status': 'resolved',
       'adminResponse': adminResponse,
       'resolvedAt': Timestamp.now(),
     });
+    batch.set(_firestore.collection('audit_log').doc(), {
+      'action': 'Resolved dispute: $subject',
+      'performedBy': performedBy,
+      'reason': adminResponse,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+    return batch.commit();
   }
 }

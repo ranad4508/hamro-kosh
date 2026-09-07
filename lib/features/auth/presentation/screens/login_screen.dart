@@ -38,6 +38,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    // The button already disables once `formState.isLoading` flips true,
+    // but that rebuild lands a frame late — an impatient double-tap in that
+    // gap would otherwise fire two overlapping sign-in attempts, each with
+    // its own error and its own snackbar.
+    if (ref.read(authFormControllerProvider).isLoading) return;
     await ref
         .read(authFormControllerProvider.notifier)
         .signIn(_email.text.trim(), _password.text);

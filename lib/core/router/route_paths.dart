@@ -9,6 +9,7 @@ abstract final class RoutePaths {
   static const onboardingTerms = '/onboarding/terms';
   static const accountPending = '/account-pending';
   static const forcedPasswordChange = '/set-password';
+  static const memberWalkthrough = '/onboarding/walkthrough';
 
   // Member shell (bottom nav / rail destinations) — Home / Ledger / Give /
   // Loans / Members, per `design_spec.md` §2's member `.tb` tab list.
@@ -41,7 +42,9 @@ abstract final class RoutePaths {
 
   static String memberDetail(String memberId) => '/members/$memberId';
   static String loanDetail(String loanId) => '/loans/$loanId';
+  static String loanTerms(String loanId) => '/loans/$loanId/terms';
   static String loanRepay(String loanId) => '/loans/$loanId/repay';
+  static String adminLoanReview(String loanId) => '/admin/loans/$loanId/review';
 
   // Admin shell
   static const adminDashboard = '/admin';
@@ -54,11 +57,14 @@ abstract final class RoutePaths {
   static const adminFundRules = '/admin/fund-rules';
   static const adminAudit = '/admin/audit';
   static const adminCreateUser = '/admin/members/create';
+  static const adminEditUser = '/admin/members/edit';
   static const adminRecordExpense = '/admin/fund/expense';
   static const adminRecordContribution = '/admin/fund/record-contribution';
   static const adminCorrectTransaction = '/admin/fund/correct';
   static const adminCampaigns = '/admin/campaigns';
   static const adminCreateCampaign = '/admin/campaigns/create';
+  static const adminEditCampaign = '/admin/campaigns/edit';
   static const adminDisputes = '/admin/disputes';
+  static const adminEmailTemplates = '/admin/email-templates';
   static const adminPrivacySettings = '/admin/privacy';
 }

@@ -79,6 +79,7 @@ const BROADCAST_TRANSACTION_TYPES = new Set([
   "specialContribution",
   "loanDisbursement",
   "loanRepayment",
+  "fundExpense",
 ]);
 
 // SRS §46 — maps a broadcast transaction's type to the member-configurable
@@ -342,6 +343,7 @@ exports.createUserAccount = onCall({ secrets: ["RESEND_API_KEY"] }, async (reque
       phone: typeof phone === "string" ? phone.trim() : null,
       role,
       isActive: true,
+      isApproved: true,
       memberSince: FieldValue.serverTimestamp(),
       createdBy: request.auth.uid,
       mustChangePassword: true,
@@ -406,7 +408,8 @@ exports.registerMember = onCall(async (request) => {
       email,
       phone: typeof phone === "string" ? phone.trim() : null,
       role: "member",
-      isActive: true,
+      isActive: false, // Inactive until approved
+      isApproved: false,
       memberSince: FieldValue.serverTimestamp(),
       mustChangePassword: false,
     });
@@ -443,7 +446,8 @@ exports.registerMember = onCall(async (request) => {
  */
 exports.verifyContribution = onCall(async (request) => {
   const caller = await requireAdmin(request.auth);
-  const { memberUid, contributionId, status } = request.data ?? {};
+  const { memberUid, contributionId, status, reason } = request.data ?? {};
+  const trimmedReason = typeof reason === "string" && reason.trim().length > 0 ? reason.trim() : null;
 
   if (typeof memberUid !== "string" || typeof contributionId !== "string" ||
       (status !== "verified" && status !== "rejected")) {
@@ -463,6 +467,7 @@ exports.verifyContribution = onCall(async (request) => {
     action: `Set contribution ${contributionId} to ${status}`,
     performedBy: request.auth.uid,
     newValue: status,
+    reason: trimmedReason,
   });
 
   await notifyUser(memberUid, {
@@ -470,7 +475,8 @@ exports.verifyContribution = onCall(async (request) => {
     body:
       status === "verified"
         ? `Your ${contribution.occasionName || "monthly"} contribution of NPR ${contribution.amount.toLocaleString()} has been verified.`
-        : `Your contribution of NPR ${contribution.amount.toLocaleString()} was rejected. Contact an admin for details.`,
+        : `Your contribution of NPR ${contribution.amount.toLocaleString()} was rejected.` +
+          (trimmedReason ? ` ${trimmedReason}` : " Contact an admin for details."),
     category: "financial",
   });
 
@@ -597,7 +603,8 @@ exports.recordContributionManually = onCall(async (request) => {
  */
 exports.approveLoan = onCall(async (request) => {
   await requireAdmin(request.auth);
-  const { loanId, action, repaymentMonths } = request.data ?? {};
+  const { loanId, action, repaymentMonths, reason } = request.data ?? {};
+  const trimmedReason = typeof reason === "string" && reason.trim().length > 0 ? reason.trim() : null;
 
   if (typeof loanId !== "string" || (action !== "approve" && action !== "reject")) {
     throw new HttpsError("invalid-argument", "loanId and a valid action are required.");
@@ -613,7 +620,11 @@ exports.approveLoan = onCall(async (request) => {
 
   if (action === "reject") {
     await ref.update({ status: "rejected" });
-    await writeAuditLog({ action: `Rejected loan ${loanId}`, performedBy: request.auth.uid });
+    await writeAuditLog({
+      action: `Rejected loan ${loanId}`,
+      performedBy: request.auth.uid,
+      reason: trimmedReason,
+    });
     await notifyUser(loan.memberId, {
       title: "Loan request rejected",
       body: `Your ${loan.category || ""} loan request for NPR ${loan.amount.toLocaleString()} was rejected.`,
@@ -685,6 +696,7 @@ exports.approveLoan = onCall(async (request) => {
     action: `Approved ${category} loan ${loanId}`,
     performedBy: request.auth.uid,
     newValue: totalPayable,
+    reason: trimmedReason,
   });
 
   await notifyUser(loan.memberId, {
@@ -1010,13 +1022,26 @@ exports.notifyOnTransaction = onDocumentCreated(
     if (recipients.length === 0) return;
 
     const amountText = typeof data.amount === "number" ? `NPR ${data.amount.toLocaleString()}` : "an amount";
-    const isLoan = data.type === "loanDisbursement";
-    const isRepayment = data.type === "loanRepayment";
-    const headline = isLoan
-      ? `A loan of ${amountText} was disbursed`
-      : isRepayment
-        ? `${data.memberName || "A member"} repaid ${amountText} on their loan`
-        : `${data.memberName || "A member"} contributed ${amountText}`;
+    const { headline, subject } = {
+      loanDisbursement: {
+        headline: `A loan of ${amountText} was disbursed`,
+        subject: "A loan was disbursed from the community fund",
+      },
+      loanRepayment: {
+        headline: `${data.memberName || "A member"} repaid ${amountText} on their loan`,
+        subject: "A loan repayment was recorded",
+      },
+      // SRS §28 — money leaving for a community expense is exactly as
+      // newsworthy as money leaving as a loan; this was previously not
+      // broadcast at all (expenses never appeared in `BROADCAST_TRANSACTION_TYPES`).
+      fundExpense: {
+        headline: `${amountText} was spent from the fund${data.recipient ? ` — paid to ${data.recipient}` : ""}`,
+        subject: "Money was spent from the community fund",
+      },
+    }[data.type] ?? {
+      headline: `${data.memberName || "A member"} contributed ${amountText}`,
+      subject: "New contribution to the community fund",
+    };
 
     const html = buildEmailShell({
       preheader: headline,
@@ -1034,15 +1059,7 @@ exports.notifyOnTransaction = onDocumentCreated(
 
     // Resend's batch endpoint sends up to 100 distinct emails in one call;
     // for a community fund's member count that's comfortably one request.
-    await sendEmail({
-      toEmails: recipients,
-      subject: isLoan
-        ? "A loan was disbursed from the community fund"
-        : isRepayment
-          ? "A loan repayment was recorded"
-          : "New contribution to the community fund",
-      html,
-    });
+    await sendEmail({ toEmails: recipients, subject, html });
   },
 );
 
@@ -1193,5 +1210,223 @@ exports.dailyLoanSweep = onSchedule(
         logger.warn(`Reminder email failed for loan ${doc.id}: ${error.message}`);
       }
     }
+  },
+);
+
+/**
+ * SRS §33 — publishing an announcement (`AdminNotificationsScreen`)
+ * previously only ever wrote the `announcements` doc itself; nothing fanned
+ * it out as an in-app notification, push, or email to members. This
+ * trigger does that fan-out whenever a new announcement is created,
+ * matching the "in-app, push, and/or email" delivery the spec calls for.
+ */
+exports.onAnnouncementPublished = onDocumentCreated(
+  { document: "announcements/{announcementId}", secrets: ["RESEND_API_KEY"] },
+  async (event) => {
+    const data = event.data?.data();
+    if (!data) return;
+
+    const db = getFirestore();
+    const usersSnap = await db.collection("users").where("isActive", "==", true).get();
+
+    await Promise.all(
+      usersSnap.docs.map((doc) =>
+        db.collection("users").doc(doc.id).collection("notifications").add({
+          title: data.title,
+          body: data.body,
+          category: "announcement",
+          createdAt: FieldValue.serverTimestamp(),
+          isRead: false,
+        }),
+      ),
+    );
+
+    const tokens = usersSnap.docs
+      .map((doc) => doc.data().fcmToken)
+      .filter((token) => typeof token === "string" && token.length > 0);
+    if (tokens.length > 0) {
+      try {
+        await getMessaging().sendEachForMulticast({
+          tokens,
+          notification: { title: data.title, body: data.body },
+        });
+      } catch (error) {
+        logger.warn(`Announcement push failed: ${error.message}`);
+      }
+    }
+
+    const recipients = usersSnap.docs
+      .filter((doc) => (doc.data().emailPreferences || {}).communityAnnouncements !== false)
+      .map((doc) => doc.data().email)
+      .filter((email) => typeof email === "string" && email.length > 0);
+    if (recipients.length === 0) return;
+
+    await sendEmail({
+      toEmails: recipients,
+      subject: data.title,
+      html: buildEmailShell({
+        preheader: data.title,
+        greeting: "Namaste,",
+        preContent: data.body || "",
+        mainContentHtml: "",
+        postContent:
+          "You can turn off community announcements any time in Settings — reminders about your own money always stay on.",
+      }),
+    });
+  },
+);
+
+/**
+ * SRS §29/§30 — a reminder for an upcoming/overdue monthly contribution.
+ * Unlike loans (which have a real `nextDueDate`), a contribution's "due
+ * date" isn't a stored field — the bylaws just say "monthly or quarterly,
+ * no fixed day" — so this approximates "due" using calendar months: once a
+ * member's most recently verified monthly contribution no longer covers
+ * the current month, they're nudged early in the month and again partway
+ * through if still uncovered. Reminders about a member's own money are
+ * never gated by an email preference (`design_spec.md` §2c's footer note).
+ */
+exports.dailyContributionSweep = onSchedule(
+  { schedule: "0 9 * * *", timeZone: "Asia/Kathmandu", secrets: ["RESEND_API_KEY"] },
+  async () => {
+    const db = getFirestore();
+    const dayOfMonth = new Date().getDate();
+    if (dayOfMonth !== 7 && dayOfMonth !== 20) return;
+
+    const usersSnap = await db.collection("users").where("isActive", "==", true).get();
+    const now = new Date();
+    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    for (const userDoc of usersSnap.docs) {
+      const uid = userDoc.id;
+      const contributionsSnap = await db
+        .collection("users")
+        .doc(uid)
+        .collection("contributions")
+        .where("category", "==", "monthly")
+        .where("status", "==", "verified")
+        .get();
+
+      let coveredThrough = null;
+      for (const c of contributionsSnap.docs) {
+        const data = c.data();
+        const start = data.date ? data.date.toDate() : null;
+        if (!start) continue;
+        const monthsCovered = data.monthsCovered ?? 1;
+        const end = new Date(start.getFullYear(), start.getMonth() + monthsCovered - 1, 1);
+        if (!coveredThrough || end > coveredThrough) coveredThrough = end;
+      }
+
+      if (coveredThrough && coveredThrough >= currentMonthStart) continue;
+
+      const monthsBehind = coveredThrough
+        ? (currentMonthStart.getFullYear() - coveredThrough.getFullYear()) * 12 +
+          (currentMonthStart.getMonth() - coveredThrough.getMonth())
+        : null;
+
+      const title = "Monthly contribution reminder";
+      const body =
+        monthsBehind && monthsBehind > 1
+          ? `You're ${monthsBehind} months behind on your monthly contribution. Up to 6 months is allowed with no penalty — but the sooner the better.`
+          : "This month's contribution hasn't been recorded yet. Give whenever you're ready — the floor is set by the committee.";
+
+      await notifyUser(uid, { title, body, category: "reminder" });
+
+      const email = userDoc.data().email;
+      if (email) {
+        try {
+          await sendEmail({
+            toEmails: [email],
+            subject: title,
+            html: buildEmailShell({
+              preheader: title,
+              greeting: "Namaste,",
+              preContent: body,
+              mainContentHtml: "",
+              postContent: "You can give any time from the app's Give tab.",
+            }),
+          });
+        } catch (error) {
+          logger.warn(`Contribution reminder email failed for ${uid}: ${error.message}`);
+        }
+      }
+    }
+  },
+);
+
+/**
+ * SRS §28 — a "Monthly reports" toggle already existed in Settings
+ * (`EmailPreferences.monthlyReports`) with nothing behind it. Runs daily
+ * and only actually does anything on the last day of the Gregorian month,
+ * sending each active member (who hasn't opted out) a summary of that
+ * month's fund activity — mirroring the notification the design shows
+ * ("Your Shrawan statement is ready — Collected X · spent Y · lent Z ·
+ * closing W").
+ */
+exports.monthlySummarySweep = onSchedule(
+  { schedule: "0 21 * * *", timeZone: "Asia/Kathmandu", secrets: ["RESEND_API_KEY"] },
+  async () => {
+    const now = new Date();
+    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    if (tomorrow.getMonth() === now.getMonth()) return;
+
+    const db = getFirestore();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+    const txSnap = await db
+      .collection("transactions")
+      .where("date", ">=", monthStart)
+      .where("date", "<", monthEnd)
+      .get();
+
+    let collected = 0;
+    let spent = 0;
+    let lent = 0;
+    for (const doc of txSnap.docs) {
+      const t = doc.data();
+      if (t.type === "monthlyContribution" || t.type === "specialContribution") collected += t.amount ?? 0;
+      else if (t.type === "fundExpense") spent += t.amount ?? 0;
+      else if (t.type === "loanDisbursement") lent += t.amount ?? 0;
+    }
+
+    const fundSnap = await db.collection("fund").doc("summary").get();
+    const closing = fundSnap.exists ? (fundSnap.data().availableBalance ?? 0) : 0;
+
+    const title = "Your monthly fund statement is ready";
+    const summaryLine =
+      `Collected ${collected.toLocaleString()} · spent ${spent.toLocaleString()} · ` +
+      `lent ${lent.toLocaleString()} · closing ${closing.toLocaleString()}`;
+
+    const usersSnap = await db.collection("users").where("isActive", "==", true).get();
+    await Promise.all(
+      usersSnap.docs.map((doc) =>
+        db.collection("users").doc(doc.id).collection("notifications").add({
+          title,
+          body: `NPR ${summaryLine}`,
+          category: "system",
+          createdAt: FieldValue.serverTimestamp(),
+          isRead: false,
+        }),
+      ),
+    );
+
+    const recipients = usersSnap.docs
+      .filter((doc) => (doc.data().emailPreferences || {}).monthlyReports !== false)
+      .map((doc) => doc.data().email)
+      .filter((email) => typeof email === "string" && email.length > 0);
+    if (recipients.length === 0) return;
+
+    await sendEmail({
+      toEmails: recipients,
+      subject: title,
+      html: buildEmailShell({
+        preheader: title,
+        greeting: "Namaste,",
+        preContent: `Here's how the fund moved this month: NPR ${summaryLine}.`,
+        mainContentHtml: "",
+        postContent: "You can turn off monthly reports any time in Settings.",
+      }),
+    });
   },
 );

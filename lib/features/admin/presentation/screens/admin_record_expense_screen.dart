@@ -6,6 +6,7 @@ import '../../../../core/models/expense_category.dart';
 import '../../../../core/services/cloud_functions_service.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/app_select_field.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/proof_picker.dart';
@@ -97,13 +98,12 @@ class _AdminRecordExpenseScreenState
               validator: Validators.positiveAmount,
             ),
             const SizedBox(height: AppSpacing.md),
-            DropdownButtonFormField<ExpenseCategory>(
-              initialValue: _category,
-              decoration: const InputDecoration(labelText: 'Category'),
-              items: ExpenseCategory.values
-                  .map((c) => DropdownMenuItem(value: c, child: Text(c.label)))
-                  .toList(),
-              onChanged: (value) => setState(() => _category = value!),
+            AppSelectField<ExpenseCategory>(
+              label: 'Category',
+              value: _category,
+              items: ExpenseCategory.values,
+              itemLabel: (c) => c.label(context),
+              onChanged: (value) => setState(() => _category = value),
             ),
             const SizedBox(height: AppSpacing.md),
             AppTextField(
@@ -119,21 +119,12 @@ class _AdminRecordExpenseScreenState
               prefixIcon: Icons.person_outline,
             ),
             const SizedBox(height: AppSpacing.md),
-            DropdownButtonFormField<String>(
-              initialValue: _paymentMethod,
-              decoration: const InputDecoration(labelText: 'Payment method'),
-              items: const [
-                DropdownMenuItem(value: 'Cash', child: Text('Cash')),
-                DropdownMenuItem(
-                  value: 'Bank transfer',
-                  child: Text('Bank transfer'),
-                ),
-                DropdownMenuItem(
-                  value: 'eSewa / Khalti',
-                  child: Text('eSewa / Khalti'),
-                ),
-              ],
-              onChanged: (value) => setState(() => _paymentMethod = value!),
+            AppSelectField<String>(
+              label: 'Payment method',
+              value: _paymentMethod,
+              items: const ['Cash', 'Bank transfer', 'eSewa / Khalti'],
+              itemLabel: (v) => v,
+              onChanged: (value) => setState(() => _paymentMethod = value),
             ),
             const SizedBox(height: AppSpacing.md),
             Text(

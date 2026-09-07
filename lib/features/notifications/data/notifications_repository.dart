@@ -44,4 +44,15 @@ class NotificationsRepository {
         .doc(notificationId)
         .update({'isRead': true});
   }
+
+  Future<void> updateAnnouncement(String id, String title, String body) {
+    return _firestore
+        .collection('announcements')
+        .doc(id)
+        .update({'title': title, 'body': body});
+  }
+
+  Future<void> deleteAnnouncement(String id) {
+    return _firestore.collection('announcements').doc(id).delete();
+  }
 }

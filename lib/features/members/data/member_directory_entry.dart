@@ -22,18 +22,22 @@ class MemberDirectoryEntry {
     required this.uid,
     required this.fullName,
     required this.memberSince,
+    required this.email,
     this.photoUrl,
     this.phone,
     this.isActive = true,
+    this.isApproved = true,
     this.role = UserRole.member,
   });
 
   final String uid;
   final String fullName;
   final DateTime memberSince;
+  final String email;
   final String? photoUrl;
   final String? phone;
   final bool isActive;
+  final bool isApproved;
 
   /// SRS.md §58 RBAC hierarchy — lets Manage Members scope who can
   /// enable/disable whom: an admin manages `member` accounts only, and only
@@ -48,11 +52,13 @@ class MemberDirectoryEntry {
     return MemberDirectoryEntry(
       uid: uid,
       fullName: data['fullName'] as String? ?? '',
+      email: data['email'] as String? ?? '',
       memberSince:
           (data['memberSince'] as Timestamp?)?.toDate() ?? DateTime.now(),
       photoUrl: data['photoUrl'] as String?,
       phone: data['phone'] as String?,
       isActive: data['isActive'] as bool? ?? true,
+      isApproved: data['isApproved'] as bool? ?? true,
       role: UserRole.fromName(data['role'] as String?),
     );
   }

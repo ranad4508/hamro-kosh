@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 /// SRS §24 — loan lifecycle states.
 enum LoanStatus {
@@ -13,18 +14,21 @@ enum LoanStatus {
   cancelled,
   defaulted;
 
-  String get label => switch (this) {
-    LoanStatus.requested => 'Requested',
-    LoanStatus.underReview => 'Under review',
-    LoanStatus.approved => 'Approved',
-    LoanStatus.rejected => 'Rejected',
-    LoanStatus.active => 'Active',
-    LoanStatus.partiallyPaid => 'Partially paid',
-    LoanStatus.overdue => 'Overdue',
-    LoanStatus.completed => 'Completed',
-    LoanStatus.cancelled => 'Cancelled',
-    LoanStatus.defaulted => 'Defaulted',
-  };
+  String label(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return switch (this) {
+      LoanStatus.requested => l10n.loanStatusRequested,
+      LoanStatus.underReview => l10n.loanStatusUnderReview,
+      LoanStatus.approved => l10n.loanStatusApproved,
+      LoanStatus.rejected => l10n.loanStatusRejected,
+      LoanStatus.active => l10n.loanStatusActive,
+      LoanStatus.partiallyPaid => l10n.loanStatusPartiallyPaid,
+      LoanStatus.overdue => l10n.loanStatusOverdue,
+      LoanStatus.completed => l10n.loanStatusCompleted,
+      LoanStatus.cancelled => l10n.loanStatusCancelled,
+      LoanStatus.defaulted => l10n.loanStatusDefaulted,
+    };
+  }
 
   /// Maps each status to a semantic tone consumed by `StatusBadge`.
   StatusTone get tone => switch (this) {
@@ -47,11 +51,14 @@ enum ContributionStatus {
   verified,
   rejected;
 
-  String get label => switch (this) {
-    ContributionStatus.pending => 'Pending',
-    ContributionStatus.verified => 'Verified',
-    ContributionStatus.rejected => 'Rejected',
-  };
+  String label(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return switch (this) {
+      ContributionStatus.pending => l10n.contributionStatusPending,
+      ContributionStatus.verified => l10n.contributionStatusVerified,
+      ContributionStatus.rejected => l10n.contributionStatusRejected,
+    };
+  }
 
   StatusTone get tone => switch (this) {
     ContributionStatus.pending => StatusTone.pending,

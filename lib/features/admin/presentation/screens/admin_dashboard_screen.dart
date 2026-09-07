@@ -6,6 +6,7 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/models/loan_status.dart';
 import '../../../../core/router/route_paths.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/finance_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/widgets/stat_card.dart';
@@ -28,8 +29,11 @@ class AdminDashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final summary = ref.watch(fundSummaryProvider);
+    final summaryAsync = ref.watch(fundSummaryProvider);
+    final summary = summaryAsync.value;
     final members = ref.watch(allMembersProvider).value ?? const [];
+    final outstandingLoanCount =
+        ref.watch(outstandingLoanCountProvider).value ?? 0;
     final pendingLoans =
         ref.watch(allLoansProvider(LoanStatus.requested)).value ?? const [];
     final pendingContributions =
@@ -107,14 +111,25 @@ class AdminDashboardScreen extends ConsumerWidget {
               Expanded(
                 child: StatCard(
                   label: 'Loans outstanding',
-                  value: '${pendingLoans.length}',
+                  value: '$outstandingLoanCount',
                   icon: Icons.pending_actions_outlined,
+                  accentColor: Theme.of(context).colorScheme.tertiary,
                 ),
               ),
             ],
           ),
+          const SizedBox(height: AppSpacing.sm),
+          StatCard(
+            label: 'Total contributions',
+            value: CurrencyFormatter.format(
+              (summary?.totalContributions ?? 0) +
+                  (summary?.totalSpecialContributions ?? 0),
+            ),
+            icon: Icons.volunteer_activism,
+            accentColor: context.financeColors.income,
+          ),
           const SizedBox(height: AppSpacing.lg),
-          summary.when(
+          summaryAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (error, _) => AppErrorState(message: '$error'),
             data: (data) => Column(

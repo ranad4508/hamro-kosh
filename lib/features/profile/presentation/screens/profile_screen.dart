@@ -13,13 +13,16 @@ import '../../../../core/widgets/initials_avatar.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../../../auth/data/app_user.dart';
 import '../../../auth/providers/auth_providers.dart';
+import '../../../contributions/providers/campaigns_providers.dart';
 import '../../../contributions/providers/contributions_providers.dart';
 import '../../../loans/providers/loans_providers.dart';
 
-/// The member's account hub (SRS §4, §32) — everything account-related
-/// (profile, security, preferences, support, and for admins a shortcut back
-/// into the admin app) lives here in one organized, grouped menu, reached
-/// via the avatar in each tab's header rather than a tab of its own.
+/// The member app's 5th bottom-nav tab (Home/Ledger/Give/Loans/**Profile**)
+/// — everything account-related (profile, security, preferences, support,
+/// the members directory, and for admins a shortcut back into the admin
+/// app) lives here in one organized, grouped menu, matching the admin
+/// shell's own "More" tab pattern rather than the reference design's
+/// separate read-only Members tab (`design_spec.md` §2).
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
@@ -27,6 +30,9 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(userProfileProvider).value;
     final isAdmin = profile?.role.canAccessAdminShell ?? false;
+    final activeCampaigns = (ref.watch(campaignsProvider).value ?? const [])
+        .where((c) => c.isActive)
+        .length;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Profile')),
@@ -36,6 +42,26 @@ class ProfileScreen extends ConsumerWidget {
           _ProfileHeaderCard(profile: profile),
           const SizedBox(height: AppSpacing.md),
           if (profile != null) _MyFundSummaryCard(uid: profile.uid),
+          const SizedBox(height: AppSpacing.lg),
+          const _SectionLabel('Community'),
+          _MenuGroup(
+            items: [
+              _MenuItem(
+                icon: Icons.groups_outlined,
+                label: 'Members directory',
+                subtitle: 'Who has given, who is borrowing',
+                onTap: () => context.push(RoutePaths.members),
+              ),
+              _MenuItem(
+                icon: Icons.campaign_outlined,
+                label: 'Campaigns',
+                subtitle: activeCampaigns > 0
+                    ? '$activeCampaigns running right now'
+                    : 'Special fundraising drives',
+                onTap: () => context.push(RoutePaths.campaigns),
+              ),
+            ],
+          ),
           const SizedBox(height: AppSpacing.lg),
           const _SectionLabel('Account'),
           _MenuGroup(
@@ -72,6 +98,12 @@ class ProfileScreen extends ConsumerWidget {
                 icon: Icons.description_outlined,
                 label: 'Terms & Conditions',
                 onTap: () => context.push(RoutePaths.profileTerms),
+              ),
+              _MenuItem(
+                icon: Icons.explore_outlined,
+                label: 'App walkthrough',
+                subtitle: 'A short tour of Home, Give, Ledger, Loans, Members',
+                onTap: () => context.push(RoutePaths.memberWalkthrough),
               ),
               _MenuItem(
                 icon: Icons.report_problem_outlined,
@@ -287,46 +319,86 @@ class _MyFundSummaryCard extends ConsumerWidget {
     );
     final hasActiveLoan = ref.watch(memberHasActiveLoanProvider(uid));
 
+    return Row(
+      children: [
+        Expanded(
+          child: _SummaryTile(
+            icon: Icons.volunteer_activism_outlined,
+            label: 'My contributions',
+            value: switch (totalContributed) {
+              AsyncData(:final value) => CurrencyFormatter.format(value),
+              AsyncError() => '—',
+              _ => '…',
+            },
+            onTap: () => context.go(RoutePaths.give),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: _SummaryTile(
+            icon: Icons.request_quote_outlined,
+            label: 'Active loan',
+            value: switch (hasActiveLoan) {
+              AsyncData(:final value) => value ? 'Yes' : 'None',
+              AsyncError() => '—',
+              _ => '…',
+            },
+            onTap: () => context.go(RoutePaths.loans),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// A compact stat card — used instead of two half-width [ListTile]s, whose
+/// default padding + leading icon left so little room for the title that
+/// "My contributions" was wrapping mid-word ("My" / "contribution" / "s").
+class _SummaryTile extends StatelessWidget {
+  const _SummaryTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
     final colors = context.colors;
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: ListTile(
-              leading: Icon(
-                Icons.volunteer_activism_outlined,
-                color: colors.accentLight,
+    return Material(
+      color: colors.surface,
+      borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.sm),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, size: 20, color: colors.accentLight),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 11, color: colors.textTertiary),
               ),
-              title: const Text('My contributions'),
-              subtitle: switch (totalContributed) {
-                AsyncData(:final value) => Text(
-                  CurrencyFormatter.format(value),
-                ),
-                AsyncError() => const Text('—'),
-                _ => const Text('…'),
-              },
-            ),
-          ),
-          VerticalDivider(width: 1, color: colors.divider),
-          Expanded(
-            child: ListTile(
-              leading: Icon(
-                Icons.request_quote_outlined,
-                color: colors.accentLight,
+              const SizedBox(height: 2),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
               ),
-              title: const Text('Active loan'),
-              subtitle: switch (hasActiveLoan) {
-                AsyncData(:final value) => Text(value ? 'Yes' : 'None'),
-                AsyncError() => const Text('—'),
-                _ => const Text('…'),
-              },
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

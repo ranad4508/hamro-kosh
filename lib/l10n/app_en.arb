@@ -125,6 +125,50 @@
   "adminAuditTitle": "Audit Trail",
   "adminContributionsTitle": "Manage Contributions",
 
+  "loanStatusRequested": "Requested",
+  "loanStatusUnderReview": "Under review",
+  "loanStatusApproved": "Approved",
+  "loanStatusRejected": "Rejected",
+  "loanStatusActive": "Active",
+  "loanStatusPartiallyPaid": "Partially paid",
+  "loanStatusOverdue": "Overdue",
+  "loanStatusCompleted": "Completed",
+  "loanStatusCancelled": "Cancelled",
+  "loanStatusDefaulted": "Defaulted",
+
+  "contributionStatusPending": "Pending",
+  "contributionStatusVerified": "Verified",
+  "contributionStatusRejected": "Rejected",
+
+  "expenseCategoryBirthday": "Birthday",
+  "expenseCategoryDashain": "Dashain",
+  "expenseCategoryTihar": "Tihar",
+  "expenseCategoryEmergency": "Emergency",
+  "expenseCategoryCommunityEvent": "Community event",
+  "expenseCategoryMemberSupport": "Member support",
+  "expenseCategoryGift": "Gift",
+  "expenseCategoryAdministration": "Administration",
+  "expenseCategoryOther": "Other",
+
+  "loanCategoryPersonal": "Personal",
+  "loanCategoryEmergency": "Emergency",
+
+  "paymentMethodEsewa": "eSewa",
+  "paymentMethodKhalti": "Khalti",
+  "paymentMethodBank": "Bank transfer",
+  "paymentMethodMobileBanking": "Mobile banking",
+  "paymentMethodCash": "Cash to treasurer",
+
+  "disputeStatusOpen": "Open",
+  "disputeStatusResolved": "Resolved",
+
+  "contributionCategoryMonthly": "Monthly",
+  "contributionCategorySpecial": "Special",
+
+  "campaignStatusActive": "Active",
+  "campaignStatusEnded": "Ended",
+  "campaignStatusDraft": "Draft",
+
   "appLockTitle": "App locked",
   "appLockPrompt": "Unlock Hamro Kosh to continue",
   "appLockUnlock": "Unlock"

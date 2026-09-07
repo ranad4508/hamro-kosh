@@ -8,6 +8,7 @@ import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/widgets/status_badge.dart';
+import '../../../auth/providers/auth_providers.dart';
 import '../../../disputes/data/dispute.dart';
 import '../../../disputes/providers/disputes_providers.dart';
 import '../widgets/admin_more_menu.dart';
@@ -104,7 +105,9 @@ class _AdminDisputeCard extends ConsumerWidget {
                   await ref
                       .read(disputesRepositoryProvider)
                       .resolve(
-                        dispute.id,
+                        disputeId: dispute.id,
+                        subject: dispute.subject,
+                        performedBy: ref.read(authStateProvider).value?.uid ?? '',
                         adminResponse: response.text.trim().isEmpty
                             ? null
                             : response.text.trim(),
@@ -152,7 +155,7 @@ class _AdminDisputeCard extends ConsumerWidget {
                   ),
                 ),
                 StatusBadge(
-                  label: dispute.status.label,
+                  label: dispute.status.label(context),
                   tone: dispute.status.tone,
                 ),
               ],

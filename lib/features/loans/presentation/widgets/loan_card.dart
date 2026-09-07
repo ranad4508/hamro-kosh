@@ -51,14 +51,14 @@ class LoanCard extends StatelessWidget {
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
                         StatusBadge(
-                          label: loan.status.label,
+                          label: loan.status.label(context),
                           tone: loan.status.tone,
                         ),
                       ],
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${loan.category.label} · ${loan.purpose}',
+                      '${loan.category.label(context)} · ${loan.purpose}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(

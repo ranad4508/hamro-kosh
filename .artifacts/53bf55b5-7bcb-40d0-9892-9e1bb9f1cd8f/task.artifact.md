@@ -1,0 +1,4 @@
+- [x] Enhancing Actor Display in Audit Trail
+    - [x] Add `watchAllUsersIncludingSuperAdmin` to `MembersRepository`
+    - [x] Add `allUsersLookupProvider` to `members_providers.dart`
+    - [x] Update `AdminAuditScreen` to show Name and Role

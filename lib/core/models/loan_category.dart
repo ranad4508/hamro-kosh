@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 /// SRS §17-§19 — Hamro Kosh's fixed lending policy, taken from the
 /// reference design. There is no admin-chosen interest rate: the category a
@@ -8,10 +9,13 @@ enum LoanCategory {
   personal,
   emergency;
 
-  String get label => switch (this) {
-    LoanCategory.personal => 'Personal',
-    LoanCategory.emergency => 'Emergency',
-  };
+  String label(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return switch (this) {
+      LoanCategory.personal => l10n.loanCategoryPersonal,
+      LoanCategory.emergency => l10n.loanCategoryEmergency,
+    };
+  }
 
   IconData get icon => switch (this) {
     LoanCategory.personal => Icons.person_outline,

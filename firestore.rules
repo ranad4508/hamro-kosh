@@ -92,7 +92,7 @@ service cloud.firestore {
             && request.resource.data.role == 'member')
         || (isSelf(userId)
             && request.resource.data.diff(resource.data).affectedKeys()
-                 .hasOnly(['fullName', 'phone', 'photoUrl', 'mustChangePassword', 'fcmToken', 'emailPreferences']));
+                 .hasOnly(['fullName', 'phone', 'photoUrl', 'mustChangePassword', 'fcmToken', 'emailPreferences', 'termsAcceptedAt']));
 
       // A super admin's document is never deletable, by anyone (SRS.md §58).
       // Not reachable from the client today (SRS §35 — accounts are

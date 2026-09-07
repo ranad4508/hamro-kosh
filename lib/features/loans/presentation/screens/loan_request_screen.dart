@@ -219,7 +219,7 @@ class _CategoryStep extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           SegmentedButton<LoanCategory>(
             segments: LoanCategory.values
-                .map((c) => ButtonSegment(value: c, label: Text(c.label)))
+                .map((c) => ButtonSegment(value: c, label: Text(c.label(context))))
                 .toList(),
             selected: {category},
             onSelectionChanged: (selection) =>
@@ -243,7 +243,7 @@ class _CategoryStep extends StatelessWidget {
               final base = Validators.positiveAmount(v);
               if (base != null) return base;
               if (categoryCap != null && double.parse(v!.trim()) > categoryCap!) {
-                return 'Exceeds the ${category.label.toLowerCase()} category cap of '
+                return 'Exceeds the ${category.label(context).toLowerCase()} category cap of '
                     '${CurrencyFormatter.format(categoryCap!)}';
               }
               return null;
@@ -258,7 +258,7 @@ class _CategoryStep extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xl),
           AppButton(
-            label: 'Continue with ${category.label}',
+            label: 'Continue with ${category.label(context)}',
             onPressed: slotsAvailable == null || slotsAvailable! <= 0
                 ? null
                 : onContinue,
@@ -315,7 +315,7 @@ class _CostStep extends StatelessWidget {
                           style: Theme.of(context).textTheme.headlineSmall,
                         ),
                         Text(
-                          '${category.label} · ${category.monthlyInterestRatePercent}% a month',
+                          '${category.label(context)} · ${category.monthlyInterestRatePercent}% a month',
                           style: TextStyle(
                             fontSize: 12,
                             color: context.colors.textTertiary,

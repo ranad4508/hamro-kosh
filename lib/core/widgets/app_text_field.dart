@@ -16,6 +16,7 @@ class AppTextField extends StatefulWidget {
     this.autofillHints,
     this.enabled = true,
     this.maxLines = 1,
+    this.hintText,
   });
 
   final String label;
@@ -24,6 +25,7 @@ class AppTextField extends StatefulWidget {
   final TextInputType? keyboardType;
   final String? Function(String?)? validator;
   final IconData? prefixIcon;
+  final String? hintText;
 
   /// A plain text prefix (e.g. `'Rs. '`) — used instead of [prefixIcon] for
   /// amount fields, since Material has no Nepali Rupee icon and
@@ -54,6 +56,7 @@ class _AppTextFieldState extends State<AppTextField> {
       maxLines: widget.obscureText ? 1 : widget.maxLines,
       decoration: InputDecoration(
         labelText: widget.label,
+        hintText: widget.hintText,
         prefixIcon: widget.prefixIcon == null
             ? null
             : Icon(widget.prefixIcon, size: 20),

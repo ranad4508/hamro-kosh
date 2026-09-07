@@ -87,11 +87,13 @@ class CloudFunctionsService {
     required String memberUid,
     required String contributionId,
     required bool approve,
+    String? reason,
   }) {
     return _call('verifyContribution', {
       'memberUid': memberUid,
       'contributionId': contributionId,
       'status': approve ? 'verified' : 'rejected',
+      'reason': ?reason,
     });
   }
 
@@ -102,16 +104,25 @@ class CloudFunctionsService {
   /// where the admin picks 1 or 2 quarters (a personal loan always repays
   /// within 1 quarter regardless of what's passed here). See
   /// `functions/index.js`.
-  Future<void> approveLoan({required String loanId, int? repaymentMonths}) {
+  Future<void> approveLoan({
+    required String loanId,
+    int? repaymentMonths,
+    String? reason,
+  }) {
     return _call('approveLoan', {
       'loanId': loanId,
       'action': 'approve',
-      if (repaymentMonths != null) 'repaymentMonths': repaymentMonths,
+      'repaymentMonths': ?repaymentMonths,
+      'reason': ?reason,
     });
   }
 
-  Future<void> rejectLoan(String loanId) {
-    return _call('approveLoan', {'loanId': loanId, 'action': 'reject'});
+  Future<void> rejectLoan(String loanId, {String? reason}) {
+    return _call('approveLoan', {
+      'loanId': loanId,
+      'action': 'reject',
+      'reason': ?reason,
+    });
   }
 
   /// SRS §21 — verifying a repayment splits it into principal/interest/

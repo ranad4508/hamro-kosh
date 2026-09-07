@@ -7,21 +7,24 @@ import '../../../../core/router/route_paths.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/widgets/empty_state.dart';
+import '../../../../core/widgets/full_screen_image_viewer.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../../../../core/models/contribution_type.dart';
 import '../../../../core/models/loan_status.dart';
 import '../../data/contribution.dart';
 import '../../providers/contributions_providers.dart';
+import '../widgets/my_record_tab.dart';
 
-/// SRS §7-§10 — monthly + special contributions and full history, with
-/// year/type filtering for the history tab.
+/// SRS §7-§10 — the member's own contribution record
+/// (`design_spec.md` §2f "My record"), plus the Monthly/Special breakdown
+/// lists.
 class ContributionsScreen extends StatelessWidget {
   const ContributionsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Contributions'),
@@ -34,6 +37,7 @@ class ContributionsScreen extends StatelessWidget {
           ],
           bottom: const TabBar(
             tabs: [
+              Tab(text: 'My record'),
               Tab(text: 'Monthly'),
               Tab(text: 'Special'),
             ],
@@ -47,6 +51,7 @@ class ContributionsScreen extends StatelessWidget {
         ),
         body: const TabBarView(
           children: [
+            MyRecordTab(),
             _ContributionsList(category: ContributionCategory.monthly),
             _ContributionsList(category: ContributionCategory.special),
           ],
@@ -138,6 +143,9 @@ class _ContributionTile extends StatelessWidget {
 
     return ListTile(
       contentPadding: EdgeInsets.zero,
+      onTap: item.proofUrl == null
+          ? null
+          : () => showFullScreenImage(context, item.proofUrl!),
       leading: Container(
         width: 40,
         height: 40,
@@ -182,7 +190,7 @@ class _ContributionTile extends StatelessWidget {
         children: [
           Text(CurrencyFormatter.format(item.amount)),
           const SizedBox(height: 4),
-          StatusBadge(label: item.status.label, tone: item.status.tone),
+          StatusBadge(label: item.status.label(context), tone: item.status.tone),
         ],
       ),
     );

@@ -1,16 +1,21 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/widgets.dart';
 
 import '../../../core/models/loan_status.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 /// SRS "Report transaction issues" / "Dispute handling" — a member-raised
 /// issue about a transaction, contribution, or loan, reviewed by an admin.
 enum DisputeStatus { open, resolved }
 
 extension DisputeStatusUi on DisputeStatus {
-  String get label => switch (this) {
-    DisputeStatus.open => 'Open',
-    DisputeStatus.resolved => 'Resolved',
-  };
+  String label(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return switch (this) {
+      DisputeStatus.open => l10n.disputeStatusOpen,
+      DisputeStatus.resolved => l10n.disputeStatusResolved,
+    };
+  }
 
   StatusTone get tone => switch (this) {
     DisputeStatus.open => StatusTone.pending,

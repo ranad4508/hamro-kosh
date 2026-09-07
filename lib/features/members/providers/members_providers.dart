@@ -22,16 +22,22 @@ final allMembersProvider = StreamProvider<List<MemberDirectoryEntry>>((ref) {
   return ref.watch(membersRepositoryProvider).watchAllMembers();
 });
 
+/// Admin-only lookup: all users including Super Admins for audit trail.
+final allUsersLookupProvider =
+    StreamProvider<List<MemberDirectoryEntry>>((ref) {
+      return ref
+          .watch(membersRepositoryProvider)
+          .watchAllUsersIncludingSuperAdmin();
+    });
+
+final pendingMembersProvider =
+    StreamProvider<List<MemberDirectoryEntry>>((ref) {
+  return ref.watch(membersRepositoryProvider).watchPendingMembers();
+});
+
 /// Active admins/super-admins — who a member can hand cash to in person
-/// (`design_spec.md` §5b: "only admins may take cash"). Derived from the
-/// regular (approved-only) directory rather than a separate query.
-final activeAdminsProvider = Provider<AsyncValue<List<MemberDirectoryEntry>>>((
-  ref,
-) {
-  final members = ref.watch(membersProvider);
-  return members.whenData(
-    (list) => list
-        .where((m) => m.isActive && m.role.canAccessAdminShell)
-        .toList(),
-  );
+/// (`design_spec.md` §5b: "only admins may take cash"). Includes the super
+/// admin, unlike the general member directory.
+final activeAdminsProvider = StreamProvider<List<MemberDirectoryEntry>>((ref) {
+  return ref.watch(membersRepositoryProvider).watchActiveAdmins();
 });

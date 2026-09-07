@@ -9,6 +9,7 @@ import '../../features/admin/presentation/screens/admin_create_user_screen.dart'
 import '../../features/admin/presentation/screens/admin_dashboard_screen.dart';
 import '../../features/admin/presentation/screens/admin_fund_rules_screen.dart';
 import '../../features/admin/presentation/screens/admin_fund_screen.dart';
+import '../../features/admin/presentation/screens/admin_loan_review_screen.dart';
 import '../../features/admin/presentation/screens/admin_loans_screen.dart';
 import '../../features/admin/presentation/screens/admin_members_screen.dart';
 import '../../features/admin/presentation/screens/admin_notifications_screen.dart';
@@ -18,6 +19,7 @@ import '../../features/admin/presentation/screens/admin_reports_screen.dart';
 import '../../features/admin/presentation/screens/admin_shell_screen.dart';
 import '../../features/admin/presentation/screens/admin_settings_screen.dart';
 import '../../features/admin/presentation/screens/admin_disputes_screen.dart';
+import '../../features/admin/presentation/screens/admin_email_templates_screen.dart';
 import '../../features/admin/presentation/screens/admin_privacy_settings_screen.dart';
 import '../../features/disputes/presentation/screens/disputes_screen.dart';
 import '../../features/disputes/presentation/screens/report_issue_screen.dart';
@@ -38,14 +40,18 @@ import '../../features/dashboard/presentation/screens/member_shell_screen.dart';
 import '../../features/fund/data/fund_transaction.dart';
 import '../../features/fund/presentation/screens/fund_screen.dart';
 import '../../features/fund/presentation/screens/transactions_screen.dart';
+import '../../features/loans/presentation/screens/loan_acceptance_screen.dart';
 import '../../features/loans/presentation/screens/loan_detail_screen.dart';
 import '../../features/loans/presentation/screens/loan_request_screen.dart';
 import '../../features/loans/presentation/screens/record_repayment_screen.dart';
 import '../../features/loans/presentation/screens/loans_screen.dart';
+import '../../features/members/data/member_directory_entry.dart';
 import '../../features/members/presentation/screens/member_detail_screen.dart';
 import '../../features/members/presentation/screens/members_screen.dart';
 import '../../features/notifications/presentation/screens/notifications_screen.dart';
+import '../../features/onboarding/presentation/screens/member_walkthrough_screen.dart';
 import '../../features/onboarding/presentation/screens/terms_screen.dart';
+import '../../features/onboarding/providers/walkthrough_controller.dart';
 import '../../features/profile/presentation/screens/change_password_screen.dart';
 import '../../features/profile/presentation/screens/edit_profile_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
@@ -62,11 +68,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: RoutePaths.splash,
     refreshListenable: GoRouterRefreshNotifier(ref),
-    redirect: (context, state) => resolveAuthRedirect(
-      authState: ref.read(authStateProvider),
-      profileState: ref.read(userProfileProvider),
-      location: state.matchedLocation,
-    ),
+    redirect: (context, state) {
+      final profile = ref.read(userProfileProvider).value;
+      final seen = ref.read(walkthroughSeenControllerProvider);
+      return resolveAuthRedirect(
+        authState: ref.read(authStateProvider),
+        profileState: ref.read(userProfileProvider),
+        location: state.matchedLocation,
+        hasSeenWalkthrough: profile == null || seen.contains(profile.uid),
+      );
+    },
     routes: [
       GoRoute(
         path: RoutePaths.splash,
@@ -79,6 +90,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RoutePaths.forcedPasswordChange,
         builder: (context, state) => const ForcedPasswordChangeScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.memberWalkthrough,
+        builder: (context, state) => const MemberWalkthroughScreen(),
       ),
       GoRoute(
         path: RoutePaths.login,
@@ -126,8 +141,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const FundScreen(),
       ),
       GoRoute(
-        path: RoutePaths.profile,
-        builder: (context, state) => const ProfileScreen(),
+        path: RoutePaths.members,
+        builder: (context, state) => const MembersScreen(),
       ),
       GoRoute(
         path: RoutePaths.reports,
@@ -150,6 +165,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/loans/:loanId',
         builder: (context, state) =>
             LoanDetailScreen(loanId: state.pathParameters['loanId']!),
+      ),
+      GoRoute(
+        path: '/loans/:loanId/terms',
+        builder: (context, state) =>
+            LoanAcceptanceScreen(loanId: state.pathParameters['loanId']!),
+      ),
+      GoRoute(
+        path: '/admin/loans/:loanId/review',
+        builder: (context, state) =>
+            AdminLoanReviewScreen(loanId: state.pathParameters['loanId']!),
       ),
       GoRoute(
         path: '/loans/:loanId/repay',
@@ -201,8 +226,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: RoutePaths.members,
-                builder: (context, state) => const MembersScreen(),
+                path: RoutePaths.profile,
+                builder: (context, state) => const ProfileScreen(),
               ),
             ],
           ),
@@ -280,6 +305,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const AdminCreateUserScreen(),
       ),
       GoRoute(
+        path: RoutePaths.adminEditUser,
+        builder: (context, state) => AdminCreateUserScreen(
+          member: state.extra as MemberDirectoryEntry?,
+        ),
+      ),
+      GoRoute(
         path: RoutePaths.adminRecordExpense,
         builder: (context, state) => const AdminRecordExpenseScreen(),
       ),
@@ -302,8 +333,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const AdminCreateCampaignScreen(),
       ),
       GoRoute(
+        path: RoutePaths.adminEditCampaign,
+        builder: (context, state) => AdminCreateCampaignScreen(
+          campaign: state.extra as Campaign?,
+        ),
+      ),
+      GoRoute(
         path: RoutePaths.adminDisputes,
         builder: (context, state) => const AdminDisputesScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.adminEmailTemplates,
+        builder: (context, state) => const AdminEmailTemplatesScreen(),
       ),
       GoRoute(
         path: RoutePaths.adminPrivacySettings,

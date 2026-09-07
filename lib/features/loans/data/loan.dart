@@ -22,6 +22,7 @@ class Loan {
     this.disbursedAt,
     this.nextDueDate,
     this.borrowerName,
+    this.memberId,
   });
 
   final String id;
@@ -30,6 +31,10 @@ class Loan {
   final LoanStatus status;
   final DateTime requestedAt;
   final LoanCategory category;
+
+  /// The borrower's uid — used to look up their member profile (join date,
+  /// prior loans) for the admin review screen.
+  final String? memberId;
   final double? interestRatePercent;
   final int? repaymentMonths;
 
@@ -85,6 +90,7 @@ class Loan {
       disbursedAt: (data['disbursedAt'] as Timestamp?)?.toDate(),
       nextDueDate: (data['nextDueDate'] as Timestamp?)?.toDate(),
       borrowerName: data['borrowerName'] as String?,
+      memberId: data['memberId'] as String?,
     );
   }
 

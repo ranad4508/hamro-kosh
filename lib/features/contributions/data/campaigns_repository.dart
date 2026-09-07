@@ -25,6 +25,32 @@ class CampaignsRepository {
     return _campaigns.add(campaign.toFirestore());
   }
 
+  Future<void> updateCampaign(Campaign campaign) {
+    return _campaigns.doc(campaign.id).update(campaign.toFirestore());
+  }
+
+  Future<void> deleteCampaign(String id) {
+    return _campaigns.doc(id).delete();
+  }
+
+  /// Sets whether a campaign is visible to members. Audited.
+  Future<void> setPublishedWithAudit({
+    required String campaignId,
+    required String campaignName,
+    required bool published,
+    required String performedBy,
+  }) {
+    final batch = _firestore.batch();
+    batch.update(_campaigns.doc(campaignId), {'isPublished': published});
+    batch.set(_firestore.collection('audit_log').doc(), {
+      'action': '${published ? 'Published' : 'Unpublished'} campaign $campaignName',
+      'performedBy': performedBy,
+      'newValue': published ? 'published' : 'draft',
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+    return batch.commit();
+  }
+
   /// Sum of *verified* contributions tagged with this campaign — SRS §15
   /// "see campaign progress". Uses a collection-group query across every
   /// member's `contributions` subcollection, governed by the same read

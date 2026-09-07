@@ -2,19 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_sizes.dart';
-import '../../../../core/utils/date_formatter.dart';
+import '../../../../core/utils/bs_date_formatter.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/app_text_field.dart';
+import '../../../../core/widgets/nepali_date_picker.dart';
 import '../../../auth/providers/auth_providers.dart';
 import '../../../contributions/data/campaign.dart';
 import '../../../contributions/providers/campaigns_providers.dart';
 
-/// SRS §15 — admin creates a named special-contribution campaign with a
-/// target amount and a date window (e.g. "Dashain Contribution 2083").
+/// SRS §15 — admin creates or edits a named special-contribution campaign.
 class AdminCreateCampaignScreen extends ConsumerStatefulWidget {
-  const AdminCreateCampaignScreen({super.key});
+  const AdminCreateCampaignScreen({super.key, this.campaign});
+
+  final Campaign? campaign;
 
   @override
   ConsumerState<AdminCreateCampaignScreen> createState() =>
@@ -24,12 +26,18 @@ class AdminCreateCampaignScreen extends ConsumerStatefulWidget {
 class _AdminCreateCampaignScreenState
     extends ConsumerState<AdminCreateCampaignScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _name = TextEditingController();
-  final _description = TextEditingController();
-  final _target = TextEditingController();
-  DateTime _startDate = DateTime.now();
-  DateTime _endDate = DateTime.now().add(const Duration(days: 30));
+  late final _name = TextEditingController(text: widget.campaign?.name);
+  late final _description =
+      TextEditingController(text: widget.campaign?.description);
+  late final _target = TextEditingController(
+    text: widget.campaign?.targetAmount?.toStringAsFixed(0) ?? '',
+  );
+  late DateTime _startDate = widget.campaign?.startDate ?? DateTime.now();
+  late DateTime _endDate =
+      widget.campaign?.endDate ?? DateTime.now().add(const Duration(days: 30));
   bool _submitting = false;
+
+  bool get _isEditing => widget.campaign != null;
 
   @override
   void dispose() {
@@ -40,7 +48,7 @@ class _AdminCreateCampaignScreenState
   }
 
   Future<void> _pickDate({required bool isStart}) async {
-    final picked = await showDatePicker(
+    final picked = await showNepaliDatePicker(
       context: context,
       initialDate: isStart ? _startDate : _endDate,
       firstDate: DateTime.now().subtract(const Duration(days: 365)),
@@ -64,32 +72,43 @@ class _AdminCreateCampaignScreenState
     setState(() => _submitting = true);
     try {
       final uid = ref.read(authStateProvider).value?.uid;
-      await ref
-          .read(campaignsRepositoryProvider)
-          .createCampaign(
-            Campaign(
-              id: '',
-              name: _name.text.trim(),
-              description: _description.text.trim(),
-              targetAmount: double.parse(_target.text.trim()),
-              startDate: _startDate,
-              endDate: _endDate,
-              createdBy: uid,
-            ),
-          );
+      final targetText = _target.text.trim();
+      final targetAmount =
+          targetText.isEmpty ? null : double.tryParse(targetText);
+
+      final campaign = Campaign(
+        id: widget.campaign?.id ?? '',
+        name: _name.text.trim(),
+        description: _description.text.trim(),
+        targetAmount: targetAmount,
+        startDate: _startDate,
+        endDate: _endDate,
+        isPublished: widget.campaign?.isPublished ?? true,
+        createdBy: widget.campaign?.createdBy ?? uid,
+      );
+
+      final repo = ref.read(campaignsRepositoryProvider);
+      if (_isEditing) {
+        await repo.updateCampaign(campaign);
+      } else {
+        await repo.createCampaign(campaign);
+      }
+
       if (mounted) {
         Navigator.of(context).pop();
         AppSnackbar.showSuccess(
           context,
-          title: 'Campaign created',
-          message: 'Members can now contribute toward it.',
+          title: _isEditing ? 'Campaign updated' : 'Campaign created',
+          message: _isEditing
+              ? 'Changes have been saved.'
+              : 'Members can now contribute toward it.',
         );
       }
     } catch (_) {
       if (mounted) {
         AppSnackbar.showError(
           context,
-          title: 'Could not create campaign',
+          title: 'Could not save campaign',
           message: 'Something went wrong. Please try again.',
         );
       }
@@ -101,7 +120,9 @@ class _AdminCreateCampaignScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('New campaign')),
+      appBar: AppBar(
+        title: Text(_isEditing ? 'Edit campaign' : 'New campaign'),
+      ),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -121,13 +142,12 @@ class _AdminCreateCampaignScreenState
             ),
             const SizedBox(height: AppSpacing.md),
             AppTextField(
-              label: 'Target amount (NPR)',
+              label: 'Target amount (optional, blank for no limit)',
               controller: _target,
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
               prefixText: 'Rs. ',
-              validator: Validators.positiveAmount,
             ),
             const SizedBox(height: AppSpacing.md),
             Row(
@@ -136,7 +156,7 @@ class _AdminCreateCampaignScreenState
                   child: OutlinedButton(
                     onPressed: () => _pickDate(isStart: true),
                     child: Text(
-                      'Start: ${DateFormatter.shortDate(_startDate)}',
+                      'Start: ${BsDateFormatter.full(_startDate)}',
                     ),
                   ),
                 ),
@@ -144,14 +164,14 @@ class _AdminCreateCampaignScreenState
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => _pickDate(isStart: false),
-                    child: Text('End: ${DateFormatter.shortDate(_endDate)}'),
+                    child: Text('End: ${BsDateFormatter.full(_endDate)}'),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: AppSpacing.xl),
             AppButton(
-              label: 'Create campaign',
+              label: _isEditing ? 'Save changes' : 'Create campaign',
               isLoading: _submitting,
               onPressed: _submit,
             ),

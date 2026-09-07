@@ -30,8 +30,8 @@ class AuditLogEntry {
       action: data['action'] as String? ?? '',
       performedBy: data['performedBy'] as String? ?? '',
       timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      previousValue: data['previousValue'] as String?,
-      newValue: data['newValue'] as String?,
+      previousValue: data['previousValue']?.toString(),
+      newValue: data['newValue']?.toString(),
       reason: data['reason'] as String?,
     );
   }

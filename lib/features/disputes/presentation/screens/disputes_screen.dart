@@ -74,7 +74,7 @@ class _DisputeCard extends StatelessWidget {
                   ),
                 ),
                 StatusBadge(
-                  label: dispute.status.label,
+                  label: dispute.status.label(context),
                   tone: dispute.status.tone,
                 ),
               ],

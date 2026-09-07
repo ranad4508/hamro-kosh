@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_sizes.dart';
+import '../../../../core/models/user_role.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/widgets/empty_state.dart';
@@ -10,22 +11,27 @@ import '../../data/audit_log_entry.dart';
 import '../../providers/admin_providers.dart';
 
 /// SRS §40 — full audit trail of administrative actions: who did what, and
-/// what changed. Each row shows only the basics (what happened, who, when)
-/// — tapping opens a bottom sheet with the complete record (previous
-/// value, new value, and the required reason), rather than cramming
-/// everything into the list row itself.
+/// what changed.
 class AdminAuditScreen extends ConsumerWidget {
   const AdminAuditScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final log = ref.watch(auditLogProvider);
-    final members = ref.watch(allMembersProvider).value ?? const [];
-    final namesByUid = {for (final m in members) m.uid: m.fullName};
+    final usersLookup = ref.watch(allUsersLookupProvider).value ?? const [];
+    final usersByUid = {for (final u in usersLookup) u.uid: u};
 
-    String actorName(String uid) {
+    String actorDisplayName(String uid) {
       if (uid == 'system') return 'System';
-      return namesByUid[uid] ?? uid;
+      final user = usersByUid[uid];
+      if (user == null) return uid;
+
+      final roleLabel = switch (user.role) {
+        UserRole.superAdmin => 'Super Admin',
+        UserRole.admin => 'Admin',
+        UserRole.member => 'Member',
+      };
+      return '${user.fullName} ($roleLabel)';
     }
 
     return Scaffold(
@@ -47,7 +53,7 @@ class AdminAuditScreen extends ConsumerWidget {
             separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (context, index) => _AuditTile(
               entry: entries[index],
-              actorName: actorName(entries[index].performedBy),
+              actorName: actorDisplayName(entries[index].performedBy),
             ),
           );
         },

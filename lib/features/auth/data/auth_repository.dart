@@ -108,9 +108,18 @@ class AuthRepository {
     String? photoUrl,
   }) {
     return _firestore.collection('users').doc(uid).update({
-      if (fullName != null) 'fullName': fullName,
-      if (phone != null) 'phone': phone,
-      if (photoUrl != null) 'photoUrl': photoUrl,
+      'fullName': ?fullName,
+      'phone': ?phone,
+      'photoUrl': ?photoUrl,
+    });
+  }
+
+  /// SRS §48 — records that this member actually acknowledged the terms
+  /// (previously the "Accept" checkbox just navigated on; nothing recorded
+  /// that the acknowledgment happened at all).
+  Future<void> acceptTerms(String uid) {
+    return _firestore.collection('users').doc(uid).update({
+      'termsAcceptedAt': FieldValue.serverTimestamp(),
     });
   }
 

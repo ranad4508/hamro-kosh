@@ -2,19 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_sizes.dart';
+import '../../../../core/models/loan_status.dart';
+import '../../../../core/models/user_role.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/widgets/empty_state.dart';
+import '../../../../core/widgets/month_grid_heatmap.dart';
+import '../../../../core/widgets/status_badge.dart';
 import '../../../admin/data/privacy_settings.dart';
 import '../../../admin/providers/admin_providers.dart';
 import '../../../contributions/providers/contributions_providers.dart';
+import '../../../loans/data/loan.dart';
 import '../../../loans/providers/loans_providers.dart';
 import '../../providers/members_providers.dart';
 
-/// SRS §32 — a member's public financial profile. Total contributed and
-/// active-loan status are computed live from the `contributions`/`loans`
-/// collections (SRS §7/§12/§54's member-to-member transparency), not read
-/// off a denormalized field on the user doc.
+/// SRS §32 — a member's public financial profile. Total contributed, month
+/// coverage, and active-loan status are computed live from the
+/// `contributions`/`loans` collections (SRS §7/§12/§54's member-to-member
+/// transparency), not read off a denormalized field on the user doc —
+/// showing the same depth of detail the Members list and Home's own
+/// coverage card give the member about themselves.
 class MemberDetailScreen extends ConsumerWidget {
   const MemberDetailScreen({super.key, required this.memberId});
 
@@ -26,9 +34,9 @@ class MemberDetailScreen extends ConsumerWidget {
     final totalContributed = ref.watch(
       memberVerifiedContributionsTotalProvider(memberId),
     );
-    final hasActiveLoan = ref.watch(memberHasActiveLoanProvider(memberId));
     final privacy =
         ref.watch(privacySettingsProvider).value ?? PrivacySettings.defaults;
+    final colors = context.colors;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Member profile')),
@@ -42,6 +50,16 @@ class MemberDetailScreen extends ConsumerWidget {
               title: 'Member not found',
             );
           }
+          final coverage = ref.watch(
+            memberCoverageProvider((uid: memberId, memberSince: data.memberSince)),
+          );
+          final loans = ref.watch(allLoansProvider(null)).value ?? const <Loan>[];
+          final memberLoans = loans.where((l) => l.memberId == memberId).toList();
+          final activeLoan = memberLoans
+              .where((l) => l.countsTowardConcurrentCap)
+              .toList()
+              .firstOrNull;
+
           return ListView(
             padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
@@ -61,9 +79,18 @@ class MemberDetailScreen extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpacing.md),
               Center(
-                child: Text(
-                  data.fullName,
-                  style: Theme.of(context).textTheme.titleLarge,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(data.fullName, style: Theme.of(context).textTheme.titleLarge),
+                    if (data.role != UserRole.member) ...[
+                      const SizedBox(width: 8),
+                      StatusBadge(
+                        label: data.role == UserRole.superAdmin ? 'Super Admin' : 'Admin',
+                        tone: StatusTone.info,
+                      ),
+                    ],
+                  ],
                 ),
               ),
               Center(
@@ -83,40 +110,66 @@ class MemberDetailScreen extends ConsumerWidget {
                     trailing: Text(data.phone!),
                   ),
                 ),
-              if (privacy.showContributionAmounts)
-                Card(
-                  child: ListTile(
-                    leading: const Icon(Icons.volunteer_activism_outlined),
-                    title: const Text('Total contributed'),
-                    trailing: switch (totalContributed) {
-                      AsyncData(:final value) => Text(
-                        CurrencyFormatter.format(value),
-                      ),
-                      AsyncError() => const Text('—'),
-                      _ => const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    },
-                  ),
+              if (privacy.showContributionAmounts) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Row(
+                  children: [
+                    _StatCell(
+                      'Given',
+                      switch (totalContributed) {
+                        AsyncData(:final value) => CurrencyFormatter.format(value),
+                        _ => '—',
+                      },
+                    ),
+                    _StatCell(
+                      'Covered to',
+                      switch (coverage) {
+                        AsyncData(:final value) => value.coveredToLabel ?? 'Not started',
+                        _ => '—',
+                      },
+                    ),
+                  ],
                 ),
-              if (privacy.showActiveLoanStatus)
-                Card(
-                  child: ListTile(
-                    leading: const Icon(Icons.request_quote_outlined),
-                    title: const Text('Active loan'),
-                    trailing: switch (hasActiveLoan) {
-                      AsyncData(:final value) => Text(value ? 'Yes' : 'None'),
-                      AsyncError() => const Text('—'),
-                      _ => const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    },
+                const SizedBox(height: AppSpacing.md),
+                switch (coverage) {
+                  AsyncData(:final value) => Container(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    decoration: BoxDecoration(
+                      color: colors.surface,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: MonthGridHeatmap(cells: value.currentYearCells, columns: 6),
                   ),
-                ),
+                  _ => const SizedBox.shrink(),
+                },
+              ],
+              if (privacy.showActiveLoanStatus) ...[
+                const SizedBox(height: AppSpacing.lg),
+                Text('Loans', style: Theme.of(context).textTheme.titleSmall),
+                const SizedBox(height: AppSpacing.sm),
+                if (activeLoan == null)
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.request_quote_outlined),
+                      title: const Text('Active loan'),
+                      trailing: const Text('None'),
+                    ),
+                  )
+                else
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.request_quote_outlined),
+                      title: Text(CurrencyFormatter.format(activeLoan.outstanding)),
+                      subtitle: Text(
+                        '${activeLoan.category.label(context)} · still to pay',
+                      ),
+                      trailing: StatusBadge(
+                        label: activeLoan.status.label(context),
+                        tone: activeLoan.status.tone,
+                      ),
+                    ),
+                  ),
+              ],
               if (!privacy.showContributionAmounts &&
                   !privacy.showActiveLoanStatus)
                 const EmptyState(
@@ -131,4 +184,37 @@ class MemberDetailScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+class _StatCell extends StatelessWidget {
+  const _StatCell(this.label, this.value);
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Expanded(
+      child: Container(
+        margin: const EdgeInsets.only(right: AppSpacing.sm),
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: TextStyle(fontSize: 10.5, color: colors.textQuaternary)),
+            const SizedBox(height: 2),
+            Text(value, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+extension<T> on Iterable<T> {
+  T? get firstOrNull => isEmpty ? null : first;
 }

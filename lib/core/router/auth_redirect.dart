@@ -19,6 +19,7 @@ String? resolveAuthRedirect({
   required AsyncValue<User?> authState,
   required AsyncValue<AppUser?> profileState,
   required String location,
+  required bool hasSeenWalkthrough,
 }) {
   final isAuthRoute = _authRoutes.contains(location);
 
@@ -63,7 +64,17 @@ String? resolveAuthRedirect({
       location == RoutePaths.splash ||
       location == RoutePaths.accountPending ||
       location == RoutePaths.forcedPasswordChange) {
+    if (!isAdmin && !hasSeenWalkthrough) return RoutePaths.memberWalkthrough;
     return isAdmin ? RoutePaths.adminDashboard : RoutePaths.home;
+  }
+
+  // A member who hasn't seen the walkthrough yet is held there until they
+  // finish or skip it — matches the design intent of a short, mandatory-once
+  // (but always skippable) tour rather than something easy to wander past.
+  if (!isAdmin &&
+      !hasSeenWalkthrough &&
+      location != RoutePaths.memberWalkthrough) {
+    return RoutePaths.memberWalkthrough;
   }
 
   if (!isAdmin && location.startsWith('/admin')) {

@@ -30,6 +30,7 @@ class MonthGridHeatmap extends StatelessWidget {
     required this.cells,
     this.columns = 4,
     this.showLegend = true,
+    this.onCellTap,
   });
 
   /// One entry per month, in calendar order (Baisakh first). Each entry's
@@ -38,6 +39,11 @@ class MonthGridHeatmap extends StatelessWidget {
   final List<({String label, MonthCellState state})> cells;
   final int columns;
   final bool showLegend;
+
+  /// When set, cells become tappable (e.g. Give's "pick which gap month to
+  /// start catching up from" — `design_spec.md` §2e) and get a subtle
+  /// pressed-state ink response; the index passed is into [cells].
+  final void Function(int index)? onCellTap;
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +60,16 @@ class MonthGridHeatmap extends StatelessWidget {
             crossAxisSpacing: 6,
             childAspectRatio: 1.5,
           ),
-          itemBuilder: (context, index) => _MonthCell(cell: cells[index]),
+          itemBuilder: (context, index) => onCellTap == null
+              ? _MonthCell(cell: cells[index])
+              : Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(6),
+                    onTap: () => onCellTap!(index),
+                    child: _MonthCell(cell: cells[index]),
+                  ),
+                ),
         ),
         if (showLegend) ...[
           const SizedBox(height: 10),

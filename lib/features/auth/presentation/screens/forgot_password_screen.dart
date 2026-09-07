@@ -30,6 +30,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (ref.read(authFormControllerProvider).isLoading) return;
     final success = await ref
         .read(authFormControllerProvider.notifier)
         .sendPasswordReset(_email.text.trim());

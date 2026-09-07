@@ -5,12 +5,13 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/models/contribution_type.dart';
 import '../../../../core/services/cloud_functions_service.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/utils/date_formatter.dart';
+import '../../../../core/utils/bs_date_formatter.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/empty_state.dart';
+import '../../../../core/widgets/nepali_date_picker.dart';
 import '../../../members/data/member_directory_entry.dart';
 import '../../../members/providers/members_providers.dart';
 
@@ -59,7 +60,7 @@ class _AdminRecordContributionScreenState
   }
 
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
+    final picked = await showNepaliDatePicker(
       context: context,
       initialDate: _date,
       firstDate: DateTime(2020),
@@ -123,7 +124,12 @@ class _AdminRecordContributionScreenState
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.lg,
+            AppSpacing.lg,
+            MediaQuery.of(context).padding.bottom + AppSpacing.xl * 2,
+          ),
           children: [
             Container(
               padding: const EdgeInsets.all(AppSpacing.md),
@@ -175,7 +181,7 @@ class _AdminRecordContributionScreenState
             const SizedBox(height: AppSpacing.xs),
             SegmentedButton<ContributionCategory>(
               segments: ContributionCategory.values
-                  .map((c) => ButtonSegment(value: c, label: Text(c.label)))
+                  .map((c) => ButtonSegment(value: c, label: Text(c.label(context))))
                   .toList(),
               selected: {_category},
               onSelectionChanged: (s) => setState(() => _category = s.first),
@@ -218,7 +224,7 @@ class _AdminRecordContributionScreenState
                   children: [
                     Icon(Icons.calendar_today_outlined, color: colors.textSecondary, size: 18),
                     const SizedBox(width: 10),
-                    Text(DateFormatter.shortDate(_date)),
+                    Text(BsDateFormatter.full(_date)),
                   ],
                 ),
               ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_sizes.dart';
@@ -6,23 +7,38 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/bilingual_text.dart';
 import '../../../../core/widgets/fade_slide_in.dart';
+import '../../../auth/providers/auth_providers.dart';
 import '../terms_content.dart';
 
 /// Renders the fund's actual 16 bylaws, grouped and bilingual
 /// (`design_spec.md` §3, screen `4b`). With [requireAcceptance] set, this is
 /// the onboarding gate shown once after registration is approved; otherwise
 /// it's the read-only viewer reached from Profile → Terms & Conditions.
-class TermsScreen extends StatefulWidget {
+class TermsScreen extends ConsumerStatefulWidget {
   const TermsScreen({super.key, this.requireAcceptance = false});
 
   final bool requireAcceptance;
 
   @override
-  State<TermsScreen> createState() => _TermsScreenState();
+  ConsumerState<TermsScreen> createState() => _TermsScreenState();
 }
 
-class _TermsScreenState extends State<TermsScreen> {
+class _TermsScreenState extends ConsumerState<TermsScreen> {
   bool _accepted = false;
+  bool _submitting = false;
+
+  Future<void> _accept() async {
+    final uid = ref.read(authStateProvider).value?.uid;
+    setState(() => _submitting = true);
+    try {
+      if (uid != null) {
+        await ref.read(authRepositoryProvider).acceptTerms(uid);
+      }
+      if (mounted) context.go('/home');
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -116,7 +132,8 @@ class _TermsScreenState extends State<TermsScreen> {
                   ),
                   AppButton(
                     label: 'Accept · स्वीकार गर्नुहोस्',
-                    onPressed: _accepted ? () => context.go('/home') : null,
+                    isLoading: _submitting,
+                    onPressed: _accepted ? _accept : null,
                   ),
                 ],
               ),

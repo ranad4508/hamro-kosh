@@ -333,6 +333,114 @@ class AppLocalizationsEn extends AppLocalizations {
   String get adminContributionsTitle => 'Manage Contributions';
 
   @override
+  String get loanStatusRequested => 'Requested';
+
+  @override
+  String get loanStatusUnderReview => 'Under review';
+
+  @override
+  String get loanStatusApproved => 'Approved';
+
+  @override
+  String get loanStatusRejected => 'Rejected';
+
+  @override
+  String get loanStatusActive => 'Active';
+
+  @override
+  String get loanStatusPartiallyPaid => 'Partially paid';
+
+  @override
+  String get loanStatusOverdue => 'Overdue';
+
+  @override
+  String get loanStatusCompleted => 'Completed';
+
+  @override
+  String get loanStatusCancelled => 'Cancelled';
+
+  @override
+  String get loanStatusDefaulted => 'Defaulted';
+
+  @override
+  String get contributionStatusPending => 'Pending';
+
+  @override
+  String get contributionStatusVerified => 'Verified';
+
+  @override
+  String get contributionStatusRejected => 'Rejected';
+
+  @override
+  String get expenseCategoryBirthday => 'Birthday';
+
+  @override
+  String get expenseCategoryDashain => 'Dashain';
+
+  @override
+  String get expenseCategoryTihar => 'Tihar';
+
+  @override
+  String get expenseCategoryEmergency => 'Emergency';
+
+  @override
+  String get expenseCategoryCommunityEvent => 'Community event';
+
+  @override
+  String get expenseCategoryMemberSupport => 'Member support';
+
+  @override
+  String get expenseCategoryGift => 'Gift';
+
+  @override
+  String get expenseCategoryAdministration => 'Administration';
+
+  @override
+  String get expenseCategoryOther => 'Other';
+
+  @override
+  String get loanCategoryPersonal => 'Personal';
+
+  @override
+  String get loanCategoryEmergency => 'Emergency';
+
+  @override
+  String get paymentMethodEsewa => 'eSewa';
+
+  @override
+  String get paymentMethodKhalti => 'Khalti';
+
+  @override
+  String get paymentMethodBank => 'Bank transfer';
+
+  @override
+  String get paymentMethodMobileBanking => 'Mobile banking';
+
+  @override
+  String get paymentMethodCash => 'Cash to treasurer';
+
+  @override
+  String get disputeStatusOpen => 'Open';
+
+  @override
+  String get disputeStatusResolved => 'Resolved';
+
+  @override
+  String get contributionCategoryMonthly => 'Monthly';
+
+  @override
+  String get contributionCategorySpecial => 'Special';
+
+  @override
+  String get campaignStatusActive => 'Active';
+
+  @override
+  String get campaignStatusEnded => 'Ended';
+
+  @override
+  String get campaignStatusDraft => 'Draft';
+
+  @override
   String get appLockTitle => 'App locked';
 
   @override

@@ -7,6 +7,16 @@ import 'package:flutter/material.dart';
 /// exact colored-card / bubble-icon / close-button / dot-accent design the
 /// product's UI reference calls for.
 abstract final class AppSnackbar {
+  // Guards against the same message flashing 2-3 times in a row — e.g. a
+  // `ref.listen` error callback re-running across a couple of rebuilds, or a
+  // double-tapped submit button firing the same failed request twice, each
+  // independently calling `showError` with an identical title/message
+  // within the same instant. A genuinely new/different message is never
+  // suppressed, only an exact repeat within this short window.
+  static String? _lastKey;
+  static DateTime? _lastShownAt;
+  static const _dedupeWindow = Duration(milliseconds: 800);
+
   static void showSuccess(
     BuildContext context, {
     required String title,
@@ -65,9 +75,25 @@ abstract final class AppSnackbar {
     required String message,
     required ContentType contentType,
   }) {
+    final now = DateTime.now();
+    final key = '$contentType|$title|$message';
+    if (key == _lastKey &&
+        _lastShownAt != null &&
+        now.difference(_lastShownAt!) < _dedupeWindow) {
+      return;
+    }
+    _lastKey = key;
+    _lastShownAt = now;
+
     final messenger = ScaffoldMessenger.of(context);
     messenger
-      ..hideCurrentSnackBar()
+      // `clearSnackBars()` removes the current snackbar (and anything
+      // queued behind it) instantly, with no exit animation — swapping in a
+      // genuinely new message this way reads as one clean replacement
+      // instead of the previous card visibly animating out while the next
+      // animates in, which is what actually reads as "flashing" when two
+      // calls land close together.
+      ..clearSnackBars()
       ..showSnackBar(
         SnackBar(
           elevation: 0,

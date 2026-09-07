@@ -740,6 +740,222 @@ abstract class AppLocalizations {
   /// **'Manage Contributions'**
   String get adminContributionsTitle;
 
+  /// No description provided for @loanStatusRequested.
+  ///
+  /// In en, this message translates to:
+  /// **'Requested'**
+  String get loanStatusRequested;
+
+  /// No description provided for @loanStatusUnderReview.
+  ///
+  /// In en, this message translates to:
+  /// **'Under review'**
+  String get loanStatusUnderReview;
+
+  /// No description provided for @loanStatusApproved.
+  ///
+  /// In en, this message translates to:
+  /// **'Approved'**
+  String get loanStatusApproved;
+
+  /// No description provided for @loanStatusRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected'**
+  String get loanStatusRejected;
+
+  /// No description provided for @loanStatusActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get loanStatusActive;
+
+  /// No description provided for @loanStatusPartiallyPaid.
+  ///
+  /// In en, this message translates to:
+  /// **'Partially paid'**
+  String get loanStatusPartiallyPaid;
+
+  /// No description provided for @loanStatusOverdue.
+  ///
+  /// In en, this message translates to:
+  /// **'Overdue'**
+  String get loanStatusOverdue;
+
+  /// No description provided for @loanStatusCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get loanStatusCompleted;
+
+  /// No description provided for @loanStatusCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get loanStatusCancelled;
+
+  /// No description provided for @loanStatusDefaulted.
+  ///
+  /// In en, this message translates to:
+  /// **'Defaulted'**
+  String get loanStatusDefaulted;
+
+  /// No description provided for @contributionStatusPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get contributionStatusPending;
+
+  /// No description provided for @contributionStatusVerified.
+  ///
+  /// In en, this message translates to:
+  /// **'Verified'**
+  String get contributionStatusVerified;
+
+  /// No description provided for @contributionStatusRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected'**
+  String get contributionStatusRejected;
+
+  /// No description provided for @expenseCategoryBirthday.
+  ///
+  /// In en, this message translates to:
+  /// **'Birthday'**
+  String get expenseCategoryBirthday;
+
+  /// No description provided for @expenseCategoryDashain.
+  ///
+  /// In en, this message translates to:
+  /// **'Dashain'**
+  String get expenseCategoryDashain;
+
+  /// No description provided for @expenseCategoryTihar.
+  ///
+  /// In en, this message translates to:
+  /// **'Tihar'**
+  String get expenseCategoryTihar;
+
+  /// No description provided for @expenseCategoryEmergency.
+  ///
+  /// In en, this message translates to:
+  /// **'Emergency'**
+  String get expenseCategoryEmergency;
+
+  /// No description provided for @expenseCategoryCommunityEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'Community event'**
+  String get expenseCategoryCommunityEvent;
+
+  /// No description provided for @expenseCategoryMemberSupport.
+  ///
+  /// In en, this message translates to:
+  /// **'Member support'**
+  String get expenseCategoryMemberSupport;
+
+  /// No description provided for @expenseCategoryGift.
+  ///
+  /// In en, this message translates to:
+  /// **'Gift'**
+  String get expenseCategoryGift;
+
+  /// No description provided for @expenseCategoryAdministration.
+  ///
+  /// In en, this message translates to:
+  /// **'Administration'**
+  String get expenseCategoryAdministration;
+
+  /// No description provided for @expenseCategoryOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get expenseCategoryOther;
+
+  /// No description provided for @loanCategoryPersonal.
+  ///
+  /// In en, this message translates to:
+  /// **'Personal'**
+  String get loanCategoryPersonal;
+
+  /// No description provided for @loanCategoryEmergency.
+  ///
+  /// In en, this message translates to:
+  /// **'Emergency'**
+  String get loanCategoryEmergency;
+
+  /// No description provided for @paymentMethodEsewa.
+  ///
+  /// In en, this message translates to:
+  /// **'eSewa'**
+  String get paymentMethodEsewa;
+
+  /// No description provided for @paymentMethodKhalti.
+  ///
+  /// In en, this message translates to:
+  /// **'Khalti'**
+  String get paymentMethodKhalti;
+
+  /// No description provided for @paymentMethodBank.
+  ///
+  /// In en, this message translates to:
+  /// **'Bank transfer'**
+  String get paymentMethodBank;
+
+  /// No description provided for @paymentMethodMobileBanking.
+  ///
+  /// In en, this message translates to:
+  /// **'Mobile banking'**
+  String get paymentMethodMobileBanking;
+
+  /// No description provided for @paymentMethodCash.
+  ///
+  /// In en, this message translates to:
+  /// **'Cash to treasurer'**
+  String get paymentMethodCash;
+
+  /// No description provided for @disputeStatusOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get disputeStatusOpen;
+
+  /// No description provided for @disputeStatusResolved.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolved'**
+  String get disputeStatusResolved;
+
+  /// No description provided for @contributionCategoryMonthly.
+  ///
+  /// In en, this message translates to:
+  /// **'Monthly'**
+  String get contributionCategoryMonthly;
+
+  /// No description provided for @contributionCategorySpecial.
+  ///
+  /// In en, this message translates to:
+  /// **'Special'**
+  String get contributionCategorySpecial;
+
+  /// No description provided for @campaignStatusActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get campaignStatusActive;
+
+  /// No description provided for @campaignStatusEnded.
+  ///
+  /// In en, this message translates to:
+  /// **'Ended'**
+  String get campaignStatusEnded;
+
+  /// No description provided for @campaignStatusDraft.
+  ///
+  /// In en, this message translates to:
+  /// **'Draft'**
+  String get campaignStatusDraft;
+
   /// No description provided for @appLockTitle.
   ///
   /// In en, this message translates to:
