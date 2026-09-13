@@ -57,7 +57,7 @@ class AdminDashboardScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: context.colors.surface,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(color: context.colors.accentDark1),
             ),
             child: Column(
@@ -98,25 +98,34 @@ class AdminDashboardScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
-          Row(
-            children: [
-              Expanded(
-                child: StatCard(
-                  label: 'Total members',
-                  value: '${members.length}',
-                  icon: Icons.people_outline,
+          // IntrinsicHeight + a stretched Row is what actually forces both
+          // cards to match the taller one's height — a Row's default
+          // crossAxisAlignment only centers children within whatever height
+          // each already wants, so a longer label wrapping to a second line
+          // (as "Loans outstanding" does more readily than "Total members")
+          // would otherwise leave the two cards visibly uneven.
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: StatCard(
+                    label: 'Total members',
+                    value: '${members.length}',
+                    icon: Icons.people_outline,
+                  ),
                 ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: StatCard(
-                  label: 'Loans outstanding',
-                  value: '$outstandingLoanCount',
-                  icon: Icons.pending_actions_outlined,
-                  accentColor: Theme.of(context).colorScheme.tertiary,
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: StatCard(
+                    label: 'Loans outstanding',
+                    value: '$outstandingLoanCount',
+                    icon: Icons.pending_actions_outlined,
+                    accentColor: Theme.of(context).colorScheme.tertiary,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
           StatCard(

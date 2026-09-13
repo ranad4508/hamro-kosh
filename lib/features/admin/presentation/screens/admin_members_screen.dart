@@ -75,13 +75,20 @@ class _AdminMembersScreenState extends ConsumerState<AdminMembersScreen> {
                             Expanded(
                               child: TextField(
                                 style: TextStyle(fontSize: 14, color: colors.textPrimary),
-                                decoration: InputDecoration(
+                                textAlignVertical: TextAlignVertical.center,
+                                // The theme's global InputDecorationTheme sets
+                                // enabledBorder/focusedBorder explicitly, which
+                                // take precedence over a plain `border:
+                                // InputBorder.none` — collapsed is the
+                                // decoration built for exactly this "seamless
+                                // field inside a custom container" case: no
+                                // border in any state, no reserved content
+                                // padding, so the field fills the pill's full
+                                // height instead of floating a smaller boxed
+                                // field inside it.
+                                decoration: InputDecoration.collapsed(
                                   hintText: 'Search members',
                                   hintStyle: TextStyle(color: colors.textTertiary),
-                                  filled: false,
-                                  contentPadding: EdgeInsets.zero,
-                                  border: InputBorder.none,
-                                  isDense: true,
                                 ),
                                 onChanged: (value) =>
                                     setState(() => _query = value.toLowerCase()),

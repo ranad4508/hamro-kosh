@@ -191,9 +191,14 @@ class _MyLoanHeroCard extends StatelessWidget {
     final isLate =
         loan.status == LoanStatus.overdue ||
         (loan.nextDueDate != null && loan.nextDueDate!.isBefore(DateTime.now()));
+    // The per-period installment is the fixed schedule agreed at approval,
+    // not the live, ever-growing `currentTotalPayable` — a repayment plan
+    // shouldn't silently inflate just because a prior installment is late;
+    // that lateness shows up as penalty in "outstanding" instead.
+    final scheduledTotalPayable = loan.totalPayable ?? loan.amount;
     final instalment = loan.repaymentMonths == null || loan.repaymentMonths == 0
         ? null
-        : totalPayable / loan.repaymentMonths!;
+        : scheduledTotalPayable / loan.repaymentMonths!;
     final instalmentsPaid = instalment == null || instalment == 0
         ? 0
         : (loan.amountPaid / instalment).floor();

@@ -73,13 +73,21 @@ class Loan {
   /// `disbursedAt` with `loanInterestOwedAt` (the same formula
   /// `verifyRepayment` uses) rather than read from `totalPayable`, which
   /// only gets refreshed on the next verified repayment. Before approval
-  /// (no `disbursedAt`/`interestRatePercent`/`repaymentMonths` yet) this
-  /// just falls back to the requested amount.
+  /// (no `disbursedAt`/`interestRatePercent`/`repaymentMonths` yet), or once
+  /// the loan has reached a terminal status (paid off, cancelled,
+  /// defaulted, rejected — `!countsTowardConcurrentCap`), this falls back
+  /// to the stored `totalPayable` instead: a closed loan's balance is
+  /// fixed, so recomputing "penalty since disbursement" against today's
+  /// date would otherwise make a fully-paid loan look like it owes more
+  /// and more the longer it stays closed.
   double get currentTotalPayable {
     final rate = interestRatePercent;
     final dueMonths = repaymentMonths;
     final disbursed = disbursedAt;
-    if (rate == null || dueMonths == null || disbursed == null) {
+    if (rate == null ||
+        dueMonths == null ||
+        disbursed == null ||
+        !countsTowardConcurrentCap) {
       return totalPayable ?? amount;
     }
     final elapsedMonths =

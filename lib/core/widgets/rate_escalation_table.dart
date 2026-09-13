@@ -36,7 +36,7 @@ class RateEscalationTable extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: context.colors.surfaceSunken,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -67,7 +67,12 @@ class RateEscalationTable extends StatelessWidget {
         category.monthlyInterestRatePercent +
         missedCycles * loanLatePenaltyMonthlyRatePercent;
     final totalPercent = effectiveMonthlyRate * months;
-    final interest = principal * effectiveMonthlyRate / 100 * months;
+    final interest = loanInterestOwedAt(
+      principal: principal,
+      monthlyRatePercent: category.monthlyInterestRatePercent,
+      dueMonths: due,
+      elapsedMonths: months.toDouble(),
+    );
     final isDanger = missedCycles > 0;
 
     final rateLabel = missedCycles == 0

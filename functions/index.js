@@ -619,6 +619,9 @@ exports.approveLoan = onCall(async (request) => {
       throw new HttpsError("not-found", "Loan not found.");
     }
     const loan = snap.data();
+    if (loan.status !== "requested") {
+      throw new HttpsError("failed-precondition", "This loan has already been reviewed.");
+    }
     await ref.update({ status: "rejected" });
     await writeAuditLog({
       action: `Rejected loan ${loanId}`,
@@ -649,6 +652,13 @@ exports.approveLoan = onCall(async (request) => {
       throw new HttpsError("not-found", "Loan not found.");
     }
     const loan = snap.data();
+    // Without this, two admins approving the same loan at once (or a
+    // client retry) would both pass every check and each write their own
+    // disbursement — the transaction retry above only serializes the two
+    // calls, it doesn't reject the second one on its own.
+    if (loan.status !== "requested") {
+      throw new HttpsError("failed-precondition", "This loan has already been reviewed.");
+    }
 
     const category = LOAN_CATEGORIES[loan.category] ? loan.category : "personal";
     const config = LOAN_CATEGORIES[category];
@@ -1338,7 +1348,12 @@ exports.dailyContributionSweep = onSchedule(
         const data = c.data();
         const start = data.date ? data.date.toDate() : null;
         if (!start) continue;
-        const monthsCovered = data.monthsCovered ?? 1;
+        // Clamp against a corrupt/oversized stored value (no upper bound is
+        // enforced on write) so this can't turn into an unbounded loop.
+        const monthsCovered = Math.min(
+          Math.max(1, Math.round(data.monthsCovered ?? 1)),
+          24,
+        );
         for (let i = 0; i < monthsCovered; i++) {
           const d = new Date(start.getFullYear(), start.getMonth() + i, 1);
           coveredMonthKeys.add(`${d.getFullYear()}-${d.getMonth()}`);
@@ -1348,14 +1363,19 @@ exports.dailyContributionSweep = onSchedule(
       const monthKey = (d) => `${d.getFullYear()}-${d.getMonth()}`;
       if (coveredMonthKeys.has(monthKey(currentMonthStart))) continue;
 
-      // Count consecutive uncovered months trailing back from the current
-      // one, stopping at the first covered (or ten-year-distant) month —
-      // this is "how far behind right now", not a count of every gap ever.
-      let monthsBehind = 0;
-      let cursor = currentMonthStart;
-      while (!coveredMonthKeys.has(monthKey(cursor)) && monthsBehind < 120) {
-        monthsBehind += 1;
-        cursor = new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1);
+      // A member with no verified monthly contribution ever (brand new, or
+      // only ever gave special contributions) has nothing to be "behind"
+      // on yet — that's the friendly first-time nudge below, not a
+      // fabricated multi-month gap. Only walk back counting a real trailing
+      // gap once there's at least some contribution history to gap against.
+      let monthsBehind = null;
+      if (coveredMonthKeys.size > 0) {
+        monthsBehind = 0;
+        let cursor = currentMonthStart;
+        while (!coveredMonthKeys.has(monthKey(cursor)) && monthsBehind < 120) {
+          monthsBehind += 1;
+          cursor = new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1);
+        }
       }
 
       const title = "Monthly contribution reminder";
