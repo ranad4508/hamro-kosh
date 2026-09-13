@@ -69,3 +69,26 @@ const double loanLatePenaltyMonthlyRatePercent = 1.5;
 /// At most this many loans may be outstanding (approved and not yet fully
 /// repaid) across the whole fund at once — a fund-wide cap, not per member.
 const int maxConcurrentLoans = 2;
+
+/// Interest owed if [elapsedMonths] have passed since disbursement — mirrors
+/// `interestOwedAt` in functions/index.js exactly (same formula, same
+/// constants), so a client-computed "what's owed right now" figure never
+/// drifts from what `verifyRepayment` will actually charge. Past the due
+/// date, every additional full repayment cycle that goes unpaid adds another
+/// [loanLatePenaltyMonthlyRatePercent] to the rate applied over the whole
+/// elapsed period (SRS §21).
+double loanInterestOwedAt({
+  required double principal,
+  required double monthlyRatePercent,
+  required int dueMonths,
+  required double elapsedMonths,
+}) {
+  final months = elapsedMonths < 0 ? 0.0 : elapsedMonths;
+  if (months <= dueMonths) {
+    return principal * monthlyRatePercent / 100 * months;
+  }
+  final missedCycles = ((months - dueMonths) / dueMonths).ceil();
+  final effectiveRate =
+      monthlyRatePercent + missedCycles * loanLatePenaltyMonthlyRatePercent;
+  return principal * effectiveRate / 100 * months;
+}

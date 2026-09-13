@@ -70,10 +70,8 @@ class LoanCard extends StatelessWidget {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(4),
                         child: LinearProgressIndicator(
-                          value: (loan.amountPaid / loan.totalPayable!).clamp(
-                            0,
-                            1,
-                          ),
+                          value: (loan.amountPaid / loan.currentTotalPayable)
+                              .clamp(0, 1),
                           minHeight: 6,
                           backgroundColor: scheme.surfaceContainerHighest,
                         ),

@@ -26,21 +26,16 @@ class LoanCostTimeline extends StatelessWidget {
 
   int get _due => dueMonths ?? category.allowedRepaymentMonths.first;
 
-  /// Interest owed if `months` have elapsed since disbursement. Past the
-  /// due date, every additional full repayment cycle that goes unpaid adds
-  /// another `loanLatePenaltyMonthlyRatePercent` to the rate applied over
-  /// the whole elapsed period — "miss a payment date... miss the next one
-  /// and another 1.5% is added on top" (SRS §21).
-  double _interestAt(int months) {
-    if (months <= _due) {
-      return principal * category.monthlyInterestRatePercent / 100 * months;
-    }
-    final missedCycles = ((months - _due) / _due).ceil();
-    final effectiveRate =
-        category.monthlyInterestRatePercent +
-        missedCycles * loanLatePenaltyMonthlyRatePercent;
-    return principal * effectiveRate / 100 * months;
-  }
+  /// Interest owed if `months` have elapsed since disbursement — delegates
+  /// to `loanInterestOwedAt`, the same formula `verifyRepayment` uses
+  /// server-side, so this preview never drifts from what a borrower is
+  /// actually charged.
+  double _interestAt(int months) => loanInterestOwedAt(
+    principal: principal,
+    monthlyRatePercent: category.monthlyInterestRatePercent,
+    dueMonths: _due,
+    elapsedMonths: months.toDouble(),
+  );
 
   @override
   Widget build(BuildContext context) {

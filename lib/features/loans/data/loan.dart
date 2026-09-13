@@ -38,10 +38,12 @@ class Loan {
   final double? interestRatePercent;
   final int? repaymentMonths;
 
-  /// Principal + interest owed, **plus any penalty accrued so far** — this
-  /// grows over the loan's life if it goes overdue (SRS §21), so
-  /// `outstanding` below always stays accurate without the UI needing to
-  /// separately track penalty.
+  /// Principal + interest owed as of the last time a Cloud Function wrote
+  /// this loan (approval, or the most recent verified repayment). This is
+  /// **not** kept fresh in between — nothing recalculates it while a loan
+  /// sits overdue with no repayment activity — so `outstanding` below
+  /// recomputes the current figure live rather than trusting this field
+  /// directly; see `currentTotalPayable`.
   final double? totalPayable;
 
   /// Cumulative amount repaid — `principalPaid + interestPaid + penaltyPaid`.
@@ -66,7 +68,39 @@ class Loan {
     _ => false,
   };
 
-  double get outstanding => (totalPayable ?? amount) - amountPaid;
+  /// The true amount currently owed — principal + fixed on-time interest +
+  /// any penalty accrued from being overdue, computed live from
+  /// `disbursedAt` with `loanInterestOwedAt` (the same formula
+  /// `verifyRepayment` uses) rather than read from `totalPayable`, which
+  /// only gets refreshed on the next verified repayment. Before approval
+  /// (no `disbursedAt`/`interestRatePercent`/`repaymentMonths` yet) this
+  /// just falls back to the requested amount.
+  double get currentTotalPayable {
+    final rate = interestRatePercent;
+    final dueMonths = repaymentMonths;
+    final disbursed = disbursedAt;
+    if (rate == null || dueMonths == null || disbursed == null) {
+      return totalPayable ?? amount;
+    }
+    final elapsedMonths =
+        DateTime.now().difference(disbursed).inMilliseconds /
+        (1000 * 60 * 60 * 24 * 30);
+    final totalInterestDue = amount * (rate / 100) * dueMonths;
+    final owedNow = loanInterestOwedAt(
+      principal: amount,
+      monthlyRatePercent: rate,
+      dueMonths: dueMonths,
+      elapsedMonths: elapsedMonths,
+    );
+    final accruedPenalty = (owedNow - totalInterestDue).clamp(
+      0,
+      double.infinity,
+    );
+    return amount + totalInterestDue + accruedPenalty;
+  }
+
+  double get outstanding =>
+      (currentTotalPayable - amountPaid).clamp(0, double.infinity);
 
   factory Loan.fromFirestore(String id, Map<String, dynamic> data) {
     return Loan(

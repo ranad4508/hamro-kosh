@@ -184,7 +184,7 @@ class _MyLoanHeroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final totalPayable = loan.totalPayable ?? loan.amount;
+    final totalPayable = loan.currentTotalPayable;
     final fraction = totalPayable == 0
         ? 0.0
         : (loan.amountPaid / totalPayable).clamp(0, 1).toDouble();

@@ -90,7 +90,7 @@ class LoanDetailScreen extends ConsumerWidget {
                 'Total payable',
                 data.totalPayable == null
                     ? 'Set at approval'
-                    : CurrencyFormatter.format(data.totalPayable!),
+                    : CurrencyFormatter.format(data.currentTotalPayable),
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
@@ -119,7 +119,10 @@ class LoanDetailScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.sm),
               if (data.totalPayable != null) ...[
                 LinearProgressIndicator(
-                  value: (data.amountPaid / data.totalPayable!).clamp(0, 1),
+                  value: (data.amountPaid / data.currentTotalPayable).clamp(
+                    0,
+                    1,
+                  ),
                   minHeight: 8,
                   borderRadius: BorderRadius.circular(4),
                 ),

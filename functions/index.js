@@ -612,13 +612,13 @@ exports.approveLoan = onCall(async (request) => {
 
   const db = getFirestore();
   const ref = db.collection("loans").doc(loanId);
-  const snap = await ref.get();
-  if (!snap.exists) {
-    throw new HttpsError("not-found", "Loan not found.");
-  }
-  const loan = snap.data();
 
   if (action === "reject") {
+    const snap = await ref.get();
+    if (!snap.exists) {
+      throw new HttpsError("not-found", "Loan not found.");
+    }
+    const loan = snap.data();
     await ref.update({ status: "rejected" });
     await writeAuditLog({
       action: `Rejected loan ${loanId}`,
@@ -633,64 +633,84 @@ exports.approveLoan = onCall(async (request) => {
     return { ok: true };
   }
 
-  const category = LOAN_CATEGORIES[loan.category] ? loan.category : "personal";
-  const config = LOAN_CATEGORIES[category];
-  const months = config.allowedMonths.includes(Number(repaymentMonths))
-    ? Number(repaymentMonths)
-    : config.allowedMonths[0];
+  // The fund-share cap and the fund-wide concurrent-loan limit both depend
+  // on shared state (fund/summary and every other loan's status) that a
+  // second admin could be reading and approving against at the same
+  // moment. A plain read-then-write here would let two concurrent
+  // approvals each pass both checks against the same stale snapshot and
+  // jointly blow past either cap — so the whole read-check-write sequence
+  // runs as one Firestore transaction, which retries automatically if
+  // another approval commits first, forcing this one to re-check against
+  // the now-current balance/count.
+  const fundRef = db.collection("fund").doc("summary");
+  const { loan, category, totalPayable } = await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) {
+      throw new HttpsError("not-found", "Loan not found.");
+    }
+    const loan = snap.data();
 
-  const fundSnap = await db.collection("fund").doc("summary").get();
-  const availableBalance = fundSnap.exists ? (fundSnap.data().availableBalance ?? 0) : 0;
-  const cap = availableBalance * config.maxFundShare;
-  if (loan.amount > cap) {
-    throw new HttpsError(
-      "failed-precondition",
-      `A ${category} loan can't exceed ${Math.round(config.maxFundShare * 100)}% of the fund balance ` +
-        `(NPR ${Math.floor(cap).toLocaleString()} available for this category).`,
+    const category = LOAN_CATEGORIES[loan.category] ? loan.category : "personal";
+    const config = LOAN_CATEGORIES[category];
+    const months = config.allowedMonths.includes(Number(repaymentMonths))
+      ? Number(repaymentMonths)
+      : config.allowedMonths[0];
+
+    const fundSnap = await tx.get(fundRef);
+    const availableBalance = fundSnap.exists ? (fundSnap.data().availableBalance ?? 0) : 0;
+    const cap = availableBalance * config.maxFundShare;
+    if (loan.amount > cap) {
+      throw new HttpsError(
+        "failed-precondition",
+        `A ${category} loan can't exceed ${Math.round(config.maxFundShare * 100)}% of the fund balance ` +
+          `(NPR ${Math.floor(cap).toLocaleString()} available for this category).`,
+      );
+    }
+
+    const outstandingSnap = await tx.get(
+      db.collection("loans").where("status", "in", OUTSTANDING_LOAN_STATUSES),
     );
-  }
+    if (outstandingSnap.size >= MAX_CONCURRENT_LOANS) {
+      throw new HttpsError(
+        "failed-precondition",
+        `Only ${MAX_CONCURRENT_LOANS} loans may be outstanding fund-wide at once, and that limit is already reached.`,
+      );
+    }
 
-  const outstandingSnap = await db
-    .collection("loans")
-    .where("status", "in", OUTSTANDING_LOAN_STATUSES)
-    .get();
-  if (outstandingSnap.size >= MAX_CONCURRENT_LOANS) {
-    throw new HttpsError(
-      "failed-precondition",
-      `Only ${MAX_CONCURRENT_LOANS} loans may be outstanding fund-wide at once, and that limit is already reached.`,
+    const rate = config.monthlyRatePercent;
+    const totalPayable = loan.amount * (1 + (rate / 100) * months);
+    const disbursedAt = new Date();
+
+    tx.update(ref, {
+      status: "approved",
+      interestRatePercent: rate,
+      repaymentMonths: months,
+      totalPayable,
+      disbursedAt,
+      nextDueDate: addMonths(disbursedAt, months),
+    });
+
+    tx.set(db.collection("transactions").doc(), {
+      type: "loanDisbursement",
+      amount: loan.amount,
+      date: FieldValue.serverTimestamp(),
+      description: loan.purpose || "Loan disbursement",
+      memberName: loan.borrowerName ?? null,
+      reference: loanId,
+    });
+
+    tx.set(
+      fundRef,
+      {
+        availableBalance: FieldValue.increment(-loan.amount),
+        totalLoaned: FieldValue.increment(loan.amount),
+        outstandingLoans: FieldValue.increment(totalPayable),
+      },
+      { merge: true },
     );
-  }
 
-  const rate = config.monthlyRatePercent;
-  const totalPayable = loan.amount * (1 + (rate / 100) * months);
-  const disbursedAt = new Date();
-
-  await ref.update({
-    status: "approved",
-    interestRatePercent: rate,
-    repaymentMonths: months,
-    totalPayable,
-    disbursedAt,
-    nextDueDate: addMonths(disbursedAt, months),
+    return { loan, category, totalPayable };
   });
-
-  await db.collection("transactions").add({
-    type: "loanDisbursement",
-    amount: loan.amount,
-    date: FieldValue.serverTimestamp(),
-    description: loan.purpose || "Loan disbursement",
-    memberName: loan.borrowerName ?? null,
-    reference: loanId,
-  });
-
-  await db.collection("fund").doc("summary").set(
-    {
-      availableBalance: FieldValue.increment(-loan.amount),
-      totalLoaned: FieldValue.increment(loan.amount),
-      outstandingLoans: FieldValue.increment(totalPayable),
-    },
-    { merge: true },
-  );
 
   await writeAuditLog({
     action: `Approved ${category} loan ${loanId}`,
@@ -1307,22 +1327,36 @@ exports.dailyContributionSweep = onSchedule(
         .where("status", "==", "verified")
         .get();
 
-      let coveredThrough = null;
+      // Expand every verified monthly contribution into the actual set of
+      // months it covers, rather than just tracking the latest contribution's
+      // end month — a member who pays for the current month after skipping
+      // an earlier one would otherwise have that later payment mask the gap
+      // (coveredThrough would jump straight to "now" even though a month in
+      // between was never paid for).
+      const coveredMonthKeys = new Set();
       for (const c of contributionsSnap.docs) {
         const data = c.data();
         const start = data.date ? data.date.toDate() : null;
         if (!start) continue;
         const monthsCovered = data.monthsCovered ?? 1;
-        const end = new Date(start.getFullYear(), start.getMonth() + monthsCovered - 1, 1);
-        if (!coveredThrough || end > coveredThrough) coveredThrough = end;
+        for (let i = 0; i < monthsCovered; i++) {
+          const d = new Date(start.getFullYear(), start.getMonth() + i, 1);
+          coveredMonthKeys.add(`${d.getFullYear()}-${d.getMonth()}`);
+        }
       }
 
-      if (coveredThrough && coveredThrough >= currentMonthStart) continue;
+      const monthKey = (d) => `${d.getFullYear()}-${d.getMonth()}`;
+      if (coveredMonthKeys.has(monthKey(currentMonthStart))) continue;
 
-      const monthsBehind = coveredThrough
-        ? (currentMonthStart.getFullYear() - coveredThrough.getFullYear()) * 12 +
-          (currentMonthStart.getMonth() - coveredThrough.getMonth())
-        : null;
+      // Count consecutive uncovered months trailing back from the current
+      // one, stopping at the first covered (or ten-year-distant) month —
+      // this is "how far behind right now", not a count of every gap ever.
+      let monthsBehind = 0;
+      let cursor = currentMonthStart;
+      while (!coveredMonthKeys.has(monthKey(cursor)) && monthsBehind < 120) {
+        monthsBehind += 1;
+        cursor = new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1);
+      }
 
       const title = "Monthly contribution reminder";
       const body =
