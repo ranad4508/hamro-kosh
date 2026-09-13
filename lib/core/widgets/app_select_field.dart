@@ -29,33 +29,48 @@ class AppSelectField<T> extends StatelessWidget {
       builder: (sheetContext) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.only(bottom: 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    label,
-                    style: Theme.of(sheetContext).textTheme.titleSmall,
+          // A plain `mainAxisSize: MainAxisSize.min` Column has no fallback
+          // once its content is taller than the sheet's available height —
+          // it just overflows silently past the bottom instead of scrolling.
+          // Bounding the sheet and letting only the item list scroll (the
+          // label stays pinned) keeps this working for any list length or
+          // screen size instead of just whatever happened to fit before.
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.75,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      label,
+                      style: Theme.of(sheetContext).textTheme.titleSmall,
+                    ),
                   ),
                 ),
-              ),
-              RadioGroup<T>(
-                groupValue: value,
-                onChanged: (v) => Navigator.of(sheetContext).pop(v),
-                child: Column(
-                  children: [
-                    for (final item in items)
-                      RadioListTile<T>(
-                        value: item,
-                        title: Text(itemLabel(item)),
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: RadioGroup<T>(
+                      groupValue: value,
+                      onChanged: (v) => Navigator.of(sheetContext).pop(v),
+                      child: Column(
+                        children: [
+                          for (final item in items)
+                            RadioListTile<T>(
+                              value: item,
+                              title: Text(itemLabel(item)),
+                            ),
+                        ],
                       ),
-                  ],
+                    ),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

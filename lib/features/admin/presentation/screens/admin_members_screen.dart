@@ -76,19 +76,26 @@ class _AdminMembersScreenState extends ConsumerState<AdminMembersScreen> {
                               child: TextField(
                                 style: TextStyle(fontSize: 14, color: colors.textPrimary),
                                 textAlignVertical: TextAlignVertical.center,
-                                // The theme's global InputDecorationTheme sets
-                                // enabledBorder/focusedBorder explicitly, which
-                                // take precedence over a plain `border:
-                                // InputBorder.none` — collapsed is the
-                                // decoration built for exactly this "seamless
-                                // field inside a custom container" case: no
-                                // border in any state, no reserved content
-                                // padding, so the field fills the pill's full
-                                // height instead of floating a smaller boxed
-                                // field inside it.
+                                // `.collapsed()` sets `border: InputBorder.none`
+                                // but leaves `enabledBorder`/`focusedBorder` as
+                                // null — and `TextField` always resolves its
+                                // decoration via `applyDefaults(theme.inputDecorationTheme)`,
+                                // which fills any *null* border field back in
+                                // from the theme. Since app_theme.dart sets
+                                // enabledBorder/focusedBorder explicitly, that
+                                // fallback silently reintroduced the theme's
+                                // outlined border here — so every border
+                                // state needs to be forced to none explicitly,
+                                // not just the base `border` field.
                                 decoration: InputDecoration.collapsed(
                                   hintText: 'Search members',
                                   hintStyle: TextStyle(color: colors.textTertiary),
+                                ).copyWith(
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  disabledBorder: InputBorder.none,
+                                  errorBorder: InputBorder.none,
+                                  focusedErrorBorder: InputBorder.none,
                                 ),
                                 onChanged: (value) =>
                                     setState(() => _query = value.toLowerCase()),
